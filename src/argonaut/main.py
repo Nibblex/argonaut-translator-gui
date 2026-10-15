@@ -35,7 +35,7 @@ def main():
     # generic fallback icon
     app.setDesktopFileName("io.github.nibblex.Argonaut")
     # Wayland ignores window icons and relies on the app_id above; this covers
-    # the fallback-x11 path, where the icon is taken from the window instead
+    # X11, where the icon is taken from the window instead
     app.setWindowIcon(QIcon.fromTheme("io.github.nibblex.Argonaut"))
     load_language()
     window = MainWindow()
