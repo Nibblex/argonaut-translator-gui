@@ -14,7 +14,7 @@ os.environ["XDG_DATA_HOME"] = _sandbox
 
 import pytest
 
-from argonaut import i18n
+from argonaut_gui import i18n
 
 
 class FakeLanguage:

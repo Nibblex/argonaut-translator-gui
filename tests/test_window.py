@@ -4,10 +4,11 @@ import re
 import pytest
 from PyQt5.QtWidgets import QFileDialog, QMessageBox, QPushButton
 
-import argonaut.window
-from argonaut.i18n import LANGUAGES, set_language, tr
-from argonaut.translation import SUPPORTED_EXTS
-from argonaut.window import (
+from argonaut_cli.translation import SUPPORTED_EXTS
+
+import argonaut_gui.window
+from argonaut_gui.i18n import LANGUAGES, set_language, tr
+from argonaut_gui.window import (
     FOLDER_COL,
     HIDEABLE_COLS,
     MODIFIED_COL,
@@ -17,7 +18,7 @@ from argonaut.window import (
     TYPE_COL,
     MainWindow,
 )
-from argonaut.worker import TranslateWorker
+from argonaut_gui.worker import TranslateWorker
 from tests.conftest import FakeLanguage, FakeTranslation
 
 
@@ -36,7 +37,7 @@ def langs(monkeypatch):
     spanish = FakeLanguage("es", "Spanish")
     english._translations["es"] = FakeTranslation(english, spanish)
     monkeypatch.setattr(
-        argonaut.window.argostranslate.translate,
+        argonaut_gui.window.argostranslate.translate,
         "get_installed_languages",
         fake_installed_languages([english, spanish]),
     )
@@ -52,7 +53,7 @@ def window(qtbot, langs):
 
 def test_no_installed_languages_disables_translation(qtbot, monkeypatch):
     monkeypatch.setattr(
-        argonaut.window.argostranslate.translate,
+        argonaut_gui.window.argostranslate.translate,
         "get_installed_languages",
         fake_installed_languages([]),
     )
@@ -81,7 +82,7 @@ def test_remove_selected(window):
 
 
 def test_human_size():
-    from argonaut.window import human_size
+    from argonaut_gui.window import human_size
 
     assert human_size(0) == "0 B"
     assert human_size(512) == "512 B"
@@ -91,7 +92,7 @@ def test_human_size():
 
 
 def test_file_list_shows_individual_and_total_sizes(window, tmp_path):
-    from argonaut.window import human_size
+    from argonaut_gui.window import human_size
 
     small = tmp_path / "small.txt"
     small.write_bytes(b"x" * 1024)  # 1 KB
@@ -350,7 +351,7 @@ def test_cache_stays_manageable_while_disabled(window, monkeypatch):
         QMessageBox, "question", staticmethod(lambda *a, **k: QMessageBox.Yes)
     )
     monkeypatch.setattr(
-        argonaut.window.TranslationCache, "purge_db",
+        argonaut_gui.window.TranslationCache, "purge_db",
         staticmethod(lambda path: purged.append(path) or 7),
     )
     window.clear_cache()
@@ -550,7 +551,7 @@ def test_open_selected_files(window, monkeypatch, tmp_path):
 
     opened = []
     monkeypatch.setattr(
-        argonaut.window.QDesktopServices,
+        argonaut_gui.window.QDesktopServices,
         "openUrl",
         staticmethod(lambda url: opened.append(url.toLocalFile())),
     )
@@ -651,7 +652,7 @@ def test_missing_output_dir_is_not_restored(qtbot, langs, tmp_path):
 def test_open_output_dir_opens_only_a_chosen_folder(window, monkeypatch, tmp_path):
     opened = []
     monkeypatch.setattr(
-        argonaut.window.QDesktopServices,
+        argonaut_gui.window.QDesktopServices,
         "openUrl",
         staticmethod(lambda url: opened.append(url.toLocalFile())),
     )
@@ -1005,7 +1006,7 @@ def pivot_window(qtbot, monkeypatch):
         albanian.get_translation(english), english.get_translation(spanish)
     )
     monkeypatch.setattr(
-        argonaut.window.argostranslate.translate,
+        argonaut_gui.window.argostranslate.translate,
         "get_installed_languages",
         fake_installed_languages([albanian, english, spanish]),
     )
@@ -1098,7 +1099,7 @@ def test_the_drop_icon_is_enlarged_when_the_style_ships_a_small_one():
     16-pixel icon adrift in the middle of the placeholder."""
     from PyQt5.QtGui import QIcon, QPixmap
 
-    from argonaut.window.file_list import DROP_ICON_SIZE, drop_pixmap
+    from argonaut_gui.window.file_list import DROP_ICON_SIZE, drop_pixmap
 
     class TinyIconStyle:
         def standardIcon(self, which):
@@ -1411,7 +1412,7 @@ def test_format_duration():
 
 def test_eta_estimation(window, monkeypatch):
     t = [100.0]
-    monkeypatch.setattr(argonaut.window.time, "monotonic", lambda: t[0])
+    monkeypatch.setattr(argonaut_gui.window.time, "monotonic", lambda: t[0])
 
     assert window.estimate_eta(0, 100) is None  # first sample only calibrates
     t[0] += 10
@@ -1430,7 +1431,7 @@ def test_eta_estimation(window, monkeypatch):
 
 def test_progress_format_includes_eta(window, monkeypatch):
     t = [0.0]
-    monkeypatch.setattr(argonaut.window.time, "monotonic", lambda: t[0])
+    monkeypatch.setattr(argonaut_gui.window.time, "monotonic", lambda: t[0])
     window.on_progress(0, 100)
     assert window.progress.format() == "%p% — 0/100"  # no estimate yet
     t[0] += 60
@@ -1449,10 +1450,10 @@ def test_backend_switch_and_persistence(qtbot, langs, monkeypatch):
         FakeLanguage("ja", "Japanese"),
     ]
     monkeypatch.setattr(
-        argonaut.window.nllb, "is_model_installed", lambda path=None: True
+        argonaut_gui.window.nllb, "is_model_installed", lambda path=None: True
     )
     monkeypatch.setattr(
-        argonaut.window.nllb,
+        argonaut_gui.window.nllb,
         "get_installed_languages",
         lambda path=None, threads=None, beam_size=None: fake_langs,
     )
@@ -1478,10 +1479,10 @@ def test_backend_switch_and_persistence(qtbot, langs, monkeypatch):
 
 def test_backend_switch_keeps_language_selection(window, monkeypatch):
     monkeypatch.setattr(
-        argonaut.window.nllb, "is_model_installed", lambda path=None: True
+        argonaut_gui.window.nllb, "is_model_installed", lambda path=None: True
     )
     monkeypatch.setattr(
-        argonaut.window.nllb,
+        argonaut_gui.window.nllb,
         "get_installed_languages",
         lambda path=None, threads=None, beam_size=None: [
             FakeLanguage("en", "English"),
@@ -1507,7 +1508,7 @@ def test_nllb_offers_every_pair_it_speaks(qtbot, monkeypatch):
 
     # the engine loads lazily, so its languages exist without a model on disk
     monkeypatch.setattr(
-        argonaut.window.nllb, "is_model_installed", lambda path=None: True
+        argonaut_gui.window.nllb, "is_model_installed", lambda path=None: True
     )
     QSettings().setValue("backend", "nllb")
     win = MainWindow()
@@ -1532,7 +1533,7 @@ def test_switching_to_nllb_unblocks_a_pair_argos_has_no_model_for(window, monkey
     """The pair the Argos packages cannot serve is one NLLB translates like
     any other, so changing engine has to lift the refusal with it."""
     monkeypatch.setattr(
-        argonaut.window.nllb, "is_model_installed", lambda path=None: True
+        argonaut_gui.window.nllb, "is_model_installed", lambda path=None: True
     )
     window.add_paths(["/a/doc.txt"])
     window.from_combo.setCurrentIndex(2)  # Spanish: no es->en package
@@ -1554,7 +1555,7 @@ def test_backend_falls_back_to_argos_without_model(qtbot, langs, monkeypatch):
 
     QSettings().setValue("backend", "nllb")
     monkeypatch.setattr(
-        argonaut.window.nllb, "is_model_installed", lambda path=None: False
+        argonaut_gui.window.nllb, "is_model_installed", lambda path=None: False
     )
     win = MainWindow()
     qtbot.addWidget(win)
@@ -1563,7 +1564,7 @@ def test_backend_falls_back_to_argos_without_model(qtbot, langs, monkeypatch):
 
 def test_backend_download_declined_keeps_argos(window, monkeypatch):
     monkeypatch.setattr(
-        argonaut.window.nllb, "is_model_installed", lambda path=None: False
+        argonaut_gui.window.nllb, "is_model_installed", lambda path=None: False
     )
     monkeypatch.setattr(
         QMessageBox, "question", staticmethod(lambda *a, **k: QMessageBox.No)
@@ -1575,7 +1576,7 @@ def test_backend_download_declined_keeps_argos(window, monkeypatch):
 
 def test_backend_download_flow(window, monkeypatch, qtbot):
     monkeypatch.setattr(
-        argonaut.window.nllb, "is_model_installed", lambda path=None: False
+        argonaut_gui.window.nllb, "is_model_installed", lambda path=None: False
     )
     monkeypatch.setattr(
         QMessageBox, "question", staticmethod(lambda *a, **k: QMessageBox.Yes)
@@ -1584,9 +1585,9 @@ def test_backend_download_flow(window, monkeypatch, qtbot):
     def fake_download(path=None, base_url=None, on_progress=None, is_cancelled=None):
         on_progress(2 * 2**20, 4 * 2**20)
 
-    monkeypatch.setattr(argonaut.window.nllb, "download_model", fake_download)
+    monkeypatch.setattr(argonaut_gui.window.nllb, "download_model", fake_download)
     monkeypatch.setattr(
-        argonaut.window.nllb,
+        argonaut_gui.window.nllb,
         "get_installed_languages",
         lambda path=None, threads=None, beam_size=None: [
             FakeLanguage("en", "English"),
@@ -1690,13 +1691,13 @@ def test_speed_units_menu_defaults_to_bits_and_applies(window):
 
 
 def test_new_model_download_releases_the_finished_downloader(window, monkeypatch, qtbot):
-    from argonaut.translation import CancelledError
+    from argonaut_cli.translation import CancelledError
 
     def cancelled_download(path=None, base_url=None, on_progress=None,
                            is_cancelled=None):
         raise CancelledError()
 
-    monkeypatch.setattr(argonaut.window.nllb, "download_model", cancelled_download)
+    monkeypatch.setattr(argonaut_gui.window.nllb, "download_model", cancelled_download)
     window.start_model_download()
     first = window.downloader
     qtbot.waitUntil(lambda: not first.isRunning(), timeout=5000)
@@ -1725,7 +1726,7 @@ def test_package_dialog_opens_and_refreshes_on_changes(window, monkeypatch):
             self.packages_changed.emit()  # as if the user installed something
 
     # patched in the module that instantiates it (show_package_dialog)
-    monkeypatch.setattr(argonaut.window.engine, "PackageDialog", FakeDialog)
+    monkeypatch.setattr(argonaut_gui.window.engine, "PackageDialog", FakeDialog)
     refreshed = []
     monkeypatch.setattr(window, "on_packages_changed", lambda: refreshed.append(True))
     window.show_package_dialog()
@@ -1747,7 +1748,7 @@ def test_history_menu_defaults_to_recording(window):
 
 
 def test_history_menu_shows_the_live_size(window):
-    from argonaut.history import TranslationHistory
+    from argonaut_cli.history import TranslationHistory
 
     history = TranslationHistory(TranslationHistory.default_db_path(), ttl_days=0)
     history.record("/docs/a.txt", "/docs/a_es.txt", "en", "es", "argos", 1.0)
@@ -1773,7 +1774,7 @@ def test_history_stays_manageable_while_disabled(window, monkeypatch):
     )
     purged = []
     monkeypatch.setattr(
-        argonaut.window.TranslationHistory, "purge_db",
+        argonaut_gui.window.TranslationHistory, "purge_db",
         staticmethod(lambda path: purged.append(path) or 4),
     )
     window.clear_history()
@@ -1787,7 +1788,7 @@ def test_clear_history_declined_keeps_it(window, monkeypatch):
     )
     purged = []
     monkeypatch.setattr(
-        argonaut.window.TranslationHistory, "purge_db",
+        argonaut_gui.window.TranslationHistory, "purge_db",
         staticmethod(lambda path: purged.append(path)),
     )
     window.clear_history()
@@ -1795,7 +1796,7 @@ def test_clear_history_declined_keeps_it(window, monkeypatch):
 
 
 def test_history_dialog_opens_and_refreshes_the_menu(window, monkeypatch):
-    from argonaut.window.history_dialog import HistoryDialog
+    from argonaut_gui.window.history_dialog import HistoryDialog
 
     opened = []
     monkeypatch.setattr(HistoryDialog, "exec_", lambda self: opened.append(self))
@@ -1821,7 +1822,7 @@ def test_history_menu_is_translated(window):
 
 
 def test_the_history_button_opens_the_same_dialog_as_the_menu(window, monkeypatch):
-    from argonaut.window.history_dialog import HistoryDialog
+    from argonaut_gui.window.history_dialog import HistoryDialog
 
     opened = []
     monkeypatch.setattr(HistoryDialog, "exec_", lambda self: opened.append(self))
@@ -1848,7 +1849,7 @@ def test_clear_cache_declined_leaves_the_cache_alone(window, monkeypatch):
     )
     purged = []
     monkeypatch.setattr(
-        argonaut.window.TranslationCache, "purge_db",
+        argonaut_gui.window.TranslationCache, "purge_db",
         staticmethod(lambda path: purged.append(path)),
     )
     window.clear_cache()
@@ -1856,11 +1857,11 @@ def test_clear_cache_declined_leaves_the_cache_alone(window, monkeypatch):
 
 
 def test_help_menu_offers_the_manual_the_bug_report_and_about(window, monkeypatch):
-    from argonaut.window.about_dialog import ISSUES_URL, MANUAL_URL
+    from argonaut_gui.window.about_dialog import ISSUES_URL, MANUAL_URL
 
     opened = []
     monkeypatch.setattr(
-        argonaut.window.QDesktopServices, "openUrl",
+        argonaut_gui.window.QDesktopServices, "openUrl",
         staticmethod(lambda url: opened.append(url.toString())),
     )
     entries = [a.text() for a in window.help_menu.actions() if not a.isSeparator()]
@@ -1877,7 +1878,7 @@ def test_help_menu_offers_the_manual_the_bug_report_and_about(window, monkeypatc
 
 
 def test_about_opens_the_dialog_with_the_window_state(window, monkeypatch):
-    from argonaut.window.about_dialog import AboutDialog
+    from argonaut_gui.window.about_dialog import AboutDialog
 
     opened = []
     monkeypatch.setattr(AboutDialog, "exec_", lambda self: opened.append(self))
@@ -1892,10 +1893,10 @@ def test_about_opens_the_dialog_with_the_window_state(window, monkeypatch):
 def test_engine_label_shows_active_backend(window, monkeypatch):
     assert window.engine_label.text() == tr("engine_status", name="Argos Translate")
     monkeypatch.setattr(
-        argonaut.window.nllb, "is_model_installed", lambda path=None: True
+        argonaut_gui.window.nllb, "is_model_installed", lambda path=None: True
     )
     monkeypatch.setattr(
-        argonaut.window.nllb,
+        argonaut_gui.window.nllb,
         "get_installed_languages",
         lambda path=None, threads=None, beam_size=None: [
             FakeLanguage("en", "English"),
@@ -1912,10 +1913,10 @@ def test_engine_label_shows_active_backend(window, monkeypatch):
 def test_remove_nllb_model(window, monkeypatch):
     installed = [True]
     monkeypatch.setattr(
-        argonaut.window.nllb, "is_model_installed", lambda path=None: installed[0]
+        argonaut_gui.window.nllb, "is_model_installed", lambda path=None: installed[0]
     )
     monkeypatch.setattr(
-        argonaut.window.nllb,
+        argonaut_gui.window.nllb,
         "get_installed_languages",
         lambda path=None, threads=None, beam_size=None: [
             FakeLanguage("en", "English"),
@@ -1928,7 +1929,7 @@ def test_remove_nllb_model(window, monkeypatch):
         installed[0] = False
         removed.append(True)
 
-    monkeypatch.setattr(argonaut.window.nllb, "remove_model", fake_remove)
+    monkeypatch.setattr(argonaut_gui.window.nllb, "remove_model", fake_remove)
     monkeypatch.setattr(
         QMessageBox, "question", staticmethod(lambda *a, **k: QMessageBox.Yes)
     )
@@ -1950,7 +1951,7 @@ def test_remove_nllb_model_declined(window, monkeypatch):
     )
     removed = []
     monkeypatch.setattr(
-        argonaut.window.nllb, "remove_model", lambda path=None: removed.append(True)
+        argonaut_gui.window.nllb, "remove_model", lambda path=None: removed.append(True)
     )
     window.remove_nllb_model()
     assert removed == []
@@ -2088,7 +2089,7 @@ def test_settings_menu_groups_engine_and_threads(window):
 
 
 def test_theme_menu_defaults_to_system_and_is_translated(window):
-    from argonaut.window.theme import current_theme
+    from argonaut_gui.window.theme import current_theme
 
     assert current_theme() == "system"
     actions = window.theme_menu.actions()
@@ -2156,7 +2157,7 @@ def test_installed_packages_refresh_the_window(qtbot, monkeypatch):
     spanish = FakeLanguage("es", "Spanish")
     installed = fake_installed_languages([])
     monkeypatch.setattr(
-        argonaut.window.argostranslate.translate, "get_installed_languages", installed
+        argonaut_gui.window.argostranslate.translate, "get_installed_languages", installed
     )
     win = MainWindow()
     qtbot.addWidget(win)
@@ -2164,7 +2165,7 @@ def test_installed_packages_refresh_the_window(qtbot, monkeypatch):
     assert not win.translate_btn.isEnabled()
 
     monkeypatch.setattr(
-        argonaut.window.argostranslate.translate,
+        argonaut_gui.window.argostranslate.translate,
         "get_installed_languages",
         fake_installed_languages([english, spanish]),
     )
@@ -2175,11 +2176,11 @@ def test_installed_packages_refresh_the_window(qtbot, monkeypatch):
 
 
 def test_quality_mode_default_and_menu(window):
-    from argonaut.window.engine import ARGOS_DEFAULT_BEAM
-    from argonaut.worker import quality_mode
+    from argonaut_gui.window.engine import ARGOS_DEFAULT_BEAM
+    from argonaut_gui.worker import quality_mode
 
     assert quality_mode() == "quality"
-    assert argonaut.window.argostranslate.settings.beam_size == ARGOS_DEFAULT_BEAM
+    assert argonaut_gui.window.argostranslate.settings.beam_size == ARGOS_DEFAULT_BEAM
     actions = window.quality_menu.actions()
     assert len(actions) == 2
     assert actions[0].isChecked()  # "quality" is the default
@@ -2190,12 +2191,12 @@ def test_quality_mode_default_and_menu(window):
 
 
 def test_quality_mode_change_applies_and_persists(qtbot, langs, monkeypatch):
-    from argonaut import nllb
-    from argonaut.window.engine import ARGOS_DEFAULT_BEAM
+    from argonaut_cli import nllb
+    from argonaut_gui.window.engine import ARGOS_DEFAULT_BEAM
 
     captured = []
     monkeypatch.setattr(
-        argonaut.window.nllb,
+        argonaut_gui.window.nllb,
         "get_installed_languages",
         lambda path=None, threads=None, beam_size=None: captured.append(beam_size) or [],
     )
@@ -2203,20 +2204,20 @@ def test_quality_mode_change_applies_and_persists(qtbot, langs, monkeypatch):
     qtbot.addWidget(win)
     win.change_quality_mode("quality")  # already active: nothing to change
     win.change_quality_mode("fast")
-    assert argonaut.window.argostranslate.settings.beam_size == 1
+    assert argonaut_gui.window.argostranslate.settings.beam_size == 1
     win.close()
 
     win2 = MainWindow()
     qtbot.addWidget(win2)
     assert win2.quality_actions[1].isChecked()  # persisted across sessions
-    assert argonaut.window.argostranslate.settings.beam_size == 1  # at startup
+    assert argonaut_gui.window.argostranslate.settings.beam_size == 1  # at startup
     monkeypatch.setattr(
-        argonaut.window.nllb, "is_model_installed", lambda path=None: True
+        argonaut_gui.window.nllb, "is_model_installed", lambda path=None: True
     )
     win2.change_backend("nllb")
     assert captured[-1] == 1  # the NLLB engine goes greedy too
     win2.change_quality_mode("quality")
-    assert argonaut.window.argostranslate.settings.beam_size == ARGOS_DEFAULT_BEAM
+    assert argonaut_gui.window.argostranslate.settings.beam_size == ARGOS_DEFAULT_BEAM
     assert captured[-1] == nllb.NllbEngine.DEFAULT_BEAM
 
 
@@ -2226,7 +2227,7 @@ def test_cpu_threads_default_and_menu(window):
     max_threads = os.cpu_count() or 1
     assert window.max_threads == max_threads
     assert window.cpu_threads == max_threads  # every core, unless overridden
-    assert argonaut.window.argostranslate.settings.intra_threads == window.cpu_threads
+    assert argonaut_gui.window.argostranslate.settings.intra_threads == window.cpu_threads
     actions = window.threads_menu.actions()
     assert [a.text() for a in actions] == [str(n) for n in range(1, max_threads + 1)]
     assert actions[window.cpu_threads - 1].isChecked()
@@ -2238,7 +2239,7 @@ def test_cpu_threads_default_and_menu(window):
 def test_cpu_threads_change_applies_and_persists(qtbot, langs, monkeypatch):
     captured = []
     monkeypatch.setattr(
-        argonaut.window.nllb,
+        argonaut_gui.window.nllb,
         "get_installed_languages",
         lambda path=None, threads=None, beam_size=None: captured.append(threads) or [],
     )
@@ -2246,7 +2247,7 @@ def test_cpu_threads_change_applies_and_persists(qtbot, langs, monkeypatch):
     qtbot.addWidget(win)
     win.change_cpu_threads(1)
     assert win.cpu_threads == 1
-    assert argonaut.window.argostranslate.settings.intra_threads == 1
+    assert argonaut_gui.window.argostranslate.settings.intra_threads == 1
     win.close()
 
     win2 = MainWindow()
@@ -2254,7 +2255,7 @@ def test_cpu_threads_change_applies_and_persists(qtbot, langs, monkeypatch):
     assert win2.cpu_threads == 1
     assert win2.threads_menu.actions()[0].isChecked()
     monkeypatch.setattr(
-        argonaut.window.nllb, "is_model_installed", lambda path=None: True
+        argonaut_gui.window.nllb, "is_model_installed", lambda path=None: True
     )
     win2.change_backend("nllb")
     assert captured[-1] == 1  # the NLLB engine receives the configured value

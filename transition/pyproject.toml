@@ -1,0 +1,42 @@
+# The last release of argonaut-translator, the name Argonaut was published
+# under until it was split into argonaut-translator-gui and
+# argonaut-translator-cli. It installs nothing of its own and depends on
+# the desktop application, so `pip install -U argonaut-translator` moves an
+# existing installation over. publish.yml builds it with every release;
+# PyPI keeps the copy it already has (skip-existing), so it is only ever
+# uploaded once.
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "argonaut-translator"
+version = "2.0.0"
+description = "Argonaut is now argonaut-translator-gui; this package installs it"
+readme = "README.md"
+license = "GPL-3.0-only"
+authors = [
+    { name = "Sergio Rodríguez", email = "srodriguez3441@gmail.com" },
+]
+requires-python = ">=3.10"
+classifiers = [
+    "Development Status :: 7 - Inactive",
+    "Environment :: X11 Applications :: Qt",
+    "Intended Audience :: End Users/Desktop",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+]
+dependencies = ["argonaut-translator-gui>=2"]
+
+[project.urls]
+Homepage = "https://github.com/Nibblex/argonaut-translator-gui"
+
+# Upgrading from 1.x installs the new packages first and removes 1.x last,
+# and 1.x's record lists bin/argonaut: removing it would take the command
+# argonaut-translator-gui has just written. Declaring it here as well
+# writes it back.
+[project.scripts]
+argonaut = "argonaut_gui.main:main"
+
+[tool.setuptools]
+packages = []

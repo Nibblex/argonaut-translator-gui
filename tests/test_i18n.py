@@ -2,8 +2,8 @@ import re
 
 import pytest
 
-from argonaut import i18n
-from argonaut.i18n import (
+from argonaut_gui import i18n
+from argonaut_gui.i18n import (
     DEFAULT,
     LANGUAGES,
     STRINGS,
@@ -90,7 +90,7 @@ def test_about_text_renders(code):
     text = tr("about_text", version="9.9.9", formats=".txt .pdf")
     assert "Argonaut 9.9.9" in text
     assert ".txt .pdf" in text
-    assert "github.com/Nibblex/Argonaut" in text
+    assert "github.com/Nibblex/argonaut-translator-gui" in text
 
 
 # menus that share a menu bar (or a parent menu) compete for the same
@@ -172,7 +172,7 @@ def test_english_has_no_table():
 
 
 def test_every_nllb_language_has_a_name():
-    from argonaut import nllb
+    from argonaut_cli import nllb
 
     missing = {code for code, _, _ in nllb.LANGUAGES} - set(language_names()["es"])
     assert not missing
