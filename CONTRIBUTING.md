@@ -71,9 +71,10 @@ All modules live in the `src/argonaut/` package:
 - `locales/language_names.json` — the translation languages' names in each of
   those interface languages (generated; see below).
 
-Packaging lives at the top level: `pyproject.toml` (PyPI),
-`io.github.nibblex.Argonaut.yml` (Flatpak manifest) and `data/` (desktop
-entry, AppStream metainfo and icon for Flathub).
+Argonaut is published on PyPI only, so `pyproject.toml` is all of its
+packaging. `data/` keeps the desktop entry and the icon, which the wheel does
+not install; for a menu entry, copy them by hand under `~/.local/share`
+(`applications/` and `icons/hicolor/scalable/apps/`).
 
 If you work with a coding agent, point it at this file: the repository ships
 no `AGENTS.md`.
@@ -113,11 +114,8 @@ Work reaches `main` through branches, not directly: a topic branch merges
 tag goes on `main` **after** that merge, so it points at the tree actually
 released rather than at the branch head before it.
 
-Bump `__version__` in `src/argonaut/__init__.py` **and** add a matching
-`<release>` entry to `data/io.github.nibblex.Argonaut.metainfo.xml`. Nothing
-checks that the two agree.
-
-### PyPI
+Bump `__version__` in `src/argonaut/__init__.py`; `pyproject.toml` reads the
+version from there, so nothing else needs touching.
 
 ```bash
 git checkout dev  && git merge --no-ff my-branch && git push origin dev
@@ -133,35 +131,3 @@ tag alone publishes nothing, so the CI run on `main` can be used as a gate: a
 version is permanent on PyPI once uploaded. CI never runs on `dev` — it
 watches `main` and pull requests only — so the local suite is what gates the
 merge.
-
-### Flathub
-
-Flathub builds have no network access, so the Python dependencies are pinned
-first with [flatpak-pip-generator](https://github.com/flatpak/flatpak-builder-tools).
-`requirements.txt` is its input and deliberately omits PyQt5, which the PyQt
-BaseApp provides; it and the `dependencies` in `pyproject.toml` are kept in
-step by hand.
-
-```bash
-python3 flatpak-pip-generator --requirements-file=requirements.txt \
-    --output python3-requirements
-```
-
-Build locally, then lint the manifest and the metainfo:
-
-```bash
-flatpak-builder --user --install --force-clean build-dir \
-    io.github.nibblex.Argonaut.yml
-flatpak run --command=flatpak-builder-lint org.flatpak.Builder \
-    manifest io.github.nibblex.Argonaut.yml
-flatpak run --command=flatpak-builder-lint org.flatpak.Builder \
-    appstream data/io.github.nibblex.Argonaut.metainfo.xml
-```
-
-First submission: open a PR against
-[flathub/flathub](https://github.com/flathub/flathub) (branch `new-pr`)
-adding the manifest, per the
-[submission guide](https://docs.flathub.org/docs/for-app-authors/submission).
-The screenshot the metainfo points at is `data/screenshots/main-window.png`,
-served from `main` on GitHub, so replacing it there updates the store page
-without a new release.
