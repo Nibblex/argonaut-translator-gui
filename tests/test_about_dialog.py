@@ -36,8 +36,8 @@ def test_about_tab_shows_the_summary_and_support_links(qtbot):
     assert dialog.tabs.tabText(1) == tr("about_tab_details")
     assert dialog.tabs.tabText(2) == tr("about_tab_credits")
     assert ".pdf" in dialog.about_label.text()
-    assert "github.com/Nibblex/Argonaut/issues" in dialog.links_label.text()
-    assert "github.com/Nibblex/Argonaut/releases" in dialog.links_label.text()
+    assert "github.com/Nibblex/argonaut-translator-gui/issues" in dialog.links_label.text()
+    assert "github.com/Nibblex/argonaut-translator-gui/releases" in dialog.links_label.text()
 
 
 def test_credits_list_the_licenses_that_matter(qtbot):

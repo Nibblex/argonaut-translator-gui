@@ -159,5 +159,5 @@
   "about_credits_intro": "<p>Argonaut 基于以下项目构建：</p>",
   "about_credits_nllb": "<p>可选的 NLLB-200 模型由 Meta AI 依据 <a href='https://creativecommons.org/licenses/by-nc/4.0/'>CC-BY-NC 4.0</a> 许可发布（非商业用途）。</p>",
   "about_title": "关于 Argonaut",
-  "about_text": "<h3>Argonaut {version}</h3><p>极简的离线文档翻译工具。</p><p>翻译完全在您的电脑上运行，使用 <a href='https://www.argosopentech.com/'>Argos Translate</a> 与 <a href='https://github.com/LibreTranslate/argos-translate-files'>argos-translate-files</a>；您的文档绝不会离开本机。</p><p>支持的格式：{formats}</p><p><a href='https://github.com/Nibblex/Argonaut'>GitHub 上的源代码</a></p><p>© 2026 Sergio Rodríguez · 依据 <a href='https://choosealicense.com/licenses/gpl-3.0/'>GNU GPL v3</a> 许可发布。</p>"
+  "about_text": "<h3>Argonaut {version}</h3><p>极简的离线文档翻译工具。</p><p>翻译完全在您的电脑上运行，使用 <a href='https://www.argosopentech.com/'>Argos Translate</a> 与 <a href='https://github.com/LibreTranslate/argos-translate-files'>argos-translate-files</a>；您的文档绝不会离开本机。</p><p>支持的格式：{formats}</p><p><a href='https://github.com/Nibblex/argonaut-translator-gui'>GitHub 上的源代码</a></p><p>© 2026 Sergio Rodríguez · 依据 <a href='https://choosealicense.com/licenses/gpl-3.0/'>GNU GPL v3</a> 许可发布。</p>"
 }
