@@ -4,10 +4,11 @@ import pytest
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QMessageBox
 
-from argonaut.history import TranslationHistory
-from argonaut.i18n import tr
-from argonaut.window import history_dialog
-from argonaut.window.history_dialog import (
+from argonaut_cli.history import TranslationHistory
+
+from argonaut_gui.i18n import tr
+from argonaut_gui.window import history_dialog
+from argonaut_gui.window.history_dialog import (
     CACHE_COL,
     COLUMN_KEYS,
     DATE_COL,

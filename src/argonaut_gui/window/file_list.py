@@ -12,8 +12,9 @@ from PyQt5.QtWidgets import (
     QWidget,
 )
 
-from argonaut.i18n import tr
-from argonaut.translation import SUPPORTED_EXTS
+from argonaut_cli.translation import SUPPORTED_EXTS
+
+from argonaut_gui.i18n import tr
 
 NAME_COL = 0
 TYPE_COL = 1

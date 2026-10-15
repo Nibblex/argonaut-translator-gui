@@ -2,8 +2,8 @@ import re
 
 import pytest
 
-from argonaut import i18n
-from argonaut.i18n import (
+from argonaut_gui import i18n
+from argonaut_gui.i18n import (
     DEFAULT,
     LANGUAGES,
     STRINGS,
@@ -172,7 +172,7 @@ def test_english_has_no_table():
 
 
 def test_every_nllb_language_has_a_name():
-    from argonaut import nllb
+    from argonaut_cli import nllb
 
     missing = {code for code, _, _ in nllb.LANGUAGES} - set(language_names()["es"])
     assert not missing

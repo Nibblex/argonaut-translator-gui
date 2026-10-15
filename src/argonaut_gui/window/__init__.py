@@ -6,24 +6,25 @@
 - translation_run: driving a batch and reflecting its progress
 - main_window: widget construction, persistence and the deferred close
 
-Everything the old argonaut.window module exposed is re-exported here, so
-``from argonaut.window import MainWindow`` keeps working. The modules the
+Everything the old argonaut_gui.window module exposed is re-exported here, so
+``from argonaut_gui.window import MainWindow`` keeps working. The modules the
 tests monkeypatch through this namespace (argostranslate, nllb, time,
 QDesktopServices, TranslationCache, TranslationHistory) are imported for
 the same reason."""
 
-import time  # noqa: F401  (patched via argonaut.window.time in tests)
+import time  # noqa: F401  (patched via argonaut_gui.window.time in tests)
 
 from PyQt5.QtGui import QDesktopServices  # noqa: F401
 
 import argostranslate.settings  # noqa: F401
 import argostranslate.translate  # noqa: F401
 
-from argonaut import nllb  # noqa: F401
-from argonaut.history import TranslationHistory  # noqa: F401
-from argonaut.package_dialog import PackageDialog  # noqa: F401
-from argonaut.translation import TranslationCache  # noqa: F401
-from argonaut.window.file_list import (
+from argonaut_cli import nllb  # noqa: F401
+from argonaut_cli.history import TranslationHistory  # noqa: F401
+from argonaut_cli.translation import TranslationCache  # noqa: F401
+
+from argonaut_gui.package_dialog import PackageDialog  # noqa: F401
+from argonaut_gui.window.file_list import (
     COLUMN_KEYS,
     FILE_MTIME_ROLE,
     FILE_PATH_ROLE,
@@ -42,7 +43,7 @@ from argonaut.window.file_list import (
     FileTree,
     human_size,
 )
-from argonaut.window.main_window import MainWindow
+from argonaut_gui.window.main_window import MainWindow
 
 __all__ = [
     "COLUMN_KEYS",

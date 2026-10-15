@@ -19,9 +19,9 @@ warnings.filterwarnings("ignore", message=".*doesn't match a supported version.*
 from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import QApplication
 
-from argonaut import __version__
-from argonaut.i18n import load_language
-from argonaut.window import MainWindow
+from argonaut_gui import __version__
+from argonaut_gui.i18n import load_language
+from argonaut_gui.window import MainWindow
 
 
 def main():

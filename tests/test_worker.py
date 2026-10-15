@@ -1,22 +1,33 @@
+"""The worker threads: how a batch's reports become signals, the settings
+the window hands a batch, and the download and package workers."""
+
 import types
 
 import pytest
 
-from argonaut import nllb, packages
-from argonaut.i18n import set_language, tr
-from argonaut.translation import CancelledError
-from argonaut.worker import (
+from argonaut_cli import nllb, packages
+from argonaut_cli.batch import AlreadyInLanguage, LanguageNotDetected, NoModel
+from argonaut_cli.translation import CancelledError
+
+from argonaut_gui.i18n import set_language, tr
+from argonaut_gui.worker import (
     MegabyteProgress,
     ModelDownloadWorker,
     PackageInstallWorker,
     PackageListWorker,
     PackageSizeWorker,
     TranslateWorker,
+    error_text,
     speed_text,
 )
-from tests.conftest import FakeBatchTranslation, FakeLanguage, FakeTranslation
-from tests.test_pdf import make_pdf
-from tests.test_translation import ENGLISH_TEXT
+from tests.conftest import FakeLanguage, FakeTranslation
+
+# enough plain English for the language detector to be sure of itself
+ENGLISH_TEXT = (
+    "The quick brown fox jumps over the lazy dog. "
+    "This paragraph is written in plain English so that the language "
+    "detector has more than enough material to work with reliably."
+)
 
 
 def make_langs():
@@ -33,44 +44,36 @@ def make_worker(files, src, dst, languages=(), output_dir=None, skip_existing=Fa
     )
 
 
-def test_output_path_next_to_original(qapp):
-    _, spanish = make_langs()
-    worker = make_worker([], None, spanish)
-    translation = FakeTranslation(to_lang=spanish)
-    assert worker.get_output_path(translation, "/data/report.txt") == "/data/report_es.txt"
-
-
-def test_output_path_in_chosen_folder(qapp):
-    _, spanish = make_langs()
-    worker = make_worker([], None, spanish, output_dir="/out")
-    translation = FakeTranslation(to_lang=spanish)
-    assert worker.get_output_path(translation, "/data/report.txt") == "/out/report_es.txt"
-
-
-def test_resolve_translation_rejects_same_language(qapp):
-    english, _ = make_langs()
-    worker = make_worker([], english, english)
-    with pytest.raises(RuntimeError):
-        worker.resolve_translation(0, "/data/report.txt")
-
-
-def test_resolve_translation_requires_a_model(qapp):
-    english, spanish = make_langs()
-    worker = make_worker([], spanish, english)  # no es->en model registered
-    with pytest.raises(RuntimeError):
-        worker.resolve_translation(0, "/data/report.txt")
-
-
-def test_resolve_translation_detects_language(qapp, tmp_path):
+def test_run_signals_each_file_and_the_end_of_the_batch(qapp, tmp_path):
     english, spanish = make_langs()
     doc = tmp_path / "doc.txt"
-    doc.write_text(ENGLISH_TEXT)
-    detected = []
-    worker = make_worker([str(doc)], None, spanish, languages=[english, spanish])
-    worker.language_detected.connect(lambda i, name: detected.append((i, name)))
-    translation = worker.resolve_translation(0, str(doc))
-    assert translation is english._translations["es"]
-    assert detected == [(0, "English")]
+    doc.write_text("hello world")
+    started, done, stats, failed, finished = [], [], [], [], []
+    worker = make_worker([str(doc)], english, spanish)
+    worker.file_started.connect(lambda i, path: started.append((i, path)))
+    worker.file_done.connect(lambda i, out, secs: done.append(out))
+    worker.file_cache_stats.connect(lambda *args: stats.append(args))
+    worker.file_failed.connect(lambda i, err: failed.append(err))
+    worker.finished_all.connect(lambda: finished.append(True))
+    worker.run()
+
+    assert started == [(0, str(doc))]
+    assert done == [str(tmp_path / "doc_es.txt")]
+    assert stats == [(0, 0, 0, 1)]
+    assert failed == []
+    assert finished == [True]
+
+
+def test_skipped_files_are_signalled(qapp, tmp_path):
+    english, spanish = make_langs()
+    doc = tmp_path / "doc.txt"
+    doc.write_text("hello world")
+    (tmp_path / "doc_es.txt").write_text("already translated")
+    skipped = []
+    worker = make_worker([str(doc)], english, spanish, skip_existing=True)
+    worker.file_skipped.connect(lambda i, out: skipped.append(out))
+    worker.run()
+    assert skipped == [str(tmp_path / "doc_es.txt")]
 
 
 def test_language_names_in_messages_follow_the_interface(qapp, tmp_path):
@@ -82,271 +85,17 @@ def test_language_names_in_messages_follow_the_interface(qapp, tmp_path):
     detected = []
     worker = make_worker([str(doc)], None, spanish, languages=[english, spanish])
     worker.language_detected.connect(lambda i, name: detected.append(name))
-    worker.resolve_translation(0, str(doc))
+    worker.run()
     assert detected == ["Inglés"]
 
+    failed = []
     worker = make_worker([str(doc)], spanish, english)  # no es->en model
-    with pytest.raises(RuntimeError, match="Español → Inglés"):
-        worker.resolve_translation(0, str(doc))
-
-
-def test_run_translates_files(qapp, tmp_path):
-    english, spanish = make_langs()
-    doc = tmp_path / "doc.txt"
-    doc.write_text("hello world")
-    done, times, failed, finished = [], [], [], []
-    worker = make_worker([str(doc)], english, spanish)
-    worker.file_done.connect(lambda i, out, secs: (done.append(out), times.append(secs)))
-    worker.file_failed.connect(lambda i, err: failed.append(err))
-    worker.finished_all.connect(lambda: finished.append(True))
-    worker.run()
-
-    assert failed == []
-    assert finished == [True]
-    out = tmp_path / "doc_es.txt"
-    assert done == [str(out)]
-    assert "HELLO WORLD" in out.read_text()
-    assert len(times) == 1 and times[0] >= 0
-
-
-def test_run_translates_pdfs_reporting_the_page_phases(qapp, tmp_path):
-    """PDFs take the FastPdfTranslator path: the file still lands in
-    file_done, and the window is told the page each phase is on."""
-    english = FakeLanguage("en", "English")
-    spanish = FakeLanguage("es", "Spanish")
-    english._translations["es"] = FakeBatchTranslation(english, spanish)
-    doc = tmp_path / "doc.pdf"
-    make_pdf(doc)
-    done, failed, phases, progress = [], [], [], []
-    worker = make_worker([str(doc)], english, spanish)
-    worker.file_done.connect(lambda i, out, secs: done.append(out))
-    worker.file_failed.connect(lambda i, err: failed.append(err))
-    worker.phase_changed.connect(lambda key, kwargs: phases.append(key))
-    worker.progress_update.connect(lambda d, t: progress.append((d, t)))
-    worker.run()
-
-    assert failed == []
-    out = tmp_path / "doc_es.pdf"
-    assert done == [str(out)] and out.exists()
-    # every long phase reported, in order, with the save last
-    assert phases[0] == "reading"
-    assert "translating_page" in phases and "generating" in phases
-    assert phases[-1] == "saving"
-    assert (0, 2) in progress  # the two paragraphs, counted while parsing
-
-
-def test_batch_shares_the_translation_cache_across_files(qapp, tmp_path):
-    # two files with the same content translate their shared paragraph once
-    english, spanish = make_langs()
-    inner = english._translations["es"]
-    for name in ("a.txt", "b.txt"):
-        (tmp_path / name).write_text("hello world")
-    worker = make_worker(
-        [str(tmp_path / "a.txt"), str(tmp_path / "b.txt")], english, spanish
-    )
-    done, stats = [], []
-    worker.file_done.connect(lambda i, out, secs: done.append(out))
-    worker.file_cache_stats.connect(
-        lambda i, reused, batch, segments: stats.append((i, reused, batch, segments))
-    )
-    worker.run()
-
-    assert len(done) == 2
-    assert inner.calls == 1  # the second file reused the first's translation
-    # first file: nothing to reuse yet; second: its one segment came from cache.
-    # The last figure is what the batch reuse is out of: one segment per file
-    assert stats == [(0, 0, 0, 1), (1, 1, 1, 2)]
-
-
-def test_cache_entries_do_not_survive_a_package_upgrade(qapp, tmp_path, monkeypatch):
-    """The persistent cache is namespaced by the installed package version:
-    after an upgrade the old model's translations must not be served."""
-    english, spanish = make_langs()
-    inner = english._translations["es"]
-    doc = tmp_path / "doc.txt"
-    doc.write_text("hello world")
-    versions = {("en", "es"): "1.0"}
-    monkeypatch.setattr(packages, "installed_versions", lambda: dict(versions))
-
-    make_worker([str(doc)], english, spanish).run()
-    assert inner.calls == 1
-    make_worker([str(doc)], english, spanish).run()
-    assert inner.calls == 1  # same version: served from the persistent cache
-
-    versions[("en", "es")] = "1.9"  # the pair was upgraded
-    make_worker([str(doc)], english, spanish).run()
-    assert inner.calls == 2  # the old model's entry is no longer valid
-
-
-def test_engine_version_tags_argos_pairs_and_the_nllb_model(qapp, monkeypatch):
-    english, spanish = make_langs()
-    translation = english._translations["es"]
-    monkeypatch.setattr(
-        packages, "installed_versions", lambda: {("en", "es"): "1.7"}
-    )
-    worker = make_worker([], english, spanish)
-    assert worker._engine_version(translation) == "1.7"
-    assert worker._engine_version(translation) == "1.7"  # read once, reused
-
-    nllb_worker = TranslateWorker(english, spanish, [], [], engine_id="nllb")
-    assert nllb_worker._engine_version(translation) == nllb.MODEL_REPO
-
-
-def test_fast_mode_namespaces_the_cache_apart(qapp, monkeypatch):
-    """Greedy output differs from beam output, so fast mode must never be
-    served quality-mode cache entries or poison them with its own."""
-    from PyQt5.QtCore import QSettings
-
-    english, spanish = make_langs()
-    translation = english._translations["es"]
-    monkeypatch.setattr(
-        packages, "installed_versions", lambda: {("en", "es"): "1.7"}
-    )
-    QSettings().setValue("quality_mode", "fast")
-    worker = make_worker([], english, spanish)
-    assert worker._engine_version(translation) == "1.7+greedy"
-    nllb_worker = TranslateWorker(english, spanish, [], [], engine_id="nllb")
-    assert nllb_worker._engine_version(translation) == nllb.MODEL_REPO + "+greedy"
-
-
-def test_a_finished_batch_is_recorded_in_the_history(qapp, tmp_path):
-    from argonaut.history import TranslationHistory
-
-    english, spanish = make_langs()
-    source = tmp_path / "note.txt"
-    source.write_text("hello world")
-    worker = make_worker([str(source)], english, spanish)
-    worker.run()
-
-    history = TranslationHistory(TranslationHistory.default_db_path(), ttl_days=0)
-    entry, = history.entries()
-    history.close()
-    assert entry.source_path == str(source)
-    assert entry.output_path == str(tmp_path / "note_es.txt")
-    assert (entry.from_code, entry.to_code) == ("en", "es")
-    assert entry.engine == "argos"
-    assert entry.seconds >= 0
-
-
-def test_each_history_row_carries_that_file_cache_figures(qapp, tmp_path):
-    """The dialog's cache column reads these, so each row has to carry its own
-    file's share rather than the batch's running total."""
-    from argonaut.history import TranslationHistory
-
-    english, spanish = make_langs()
-    for name in ("a.txt", "b.txt"):
-        (tmp_path / name).write_text("hello world")
-    worker = make_worker(
-        [str(tmp_path / "a.txt"), str(tmp_path / "b.txt")], english, spanish
-    )
-    worker.run()
-
-    history = TranslationHistory(TranslationHistory.default_db_path(), ttl_days=0)
-    rows = {entry.source_path: entry for entry in history.entries()}
-    history.close()
-    first = rows[str(tmp_path / "a.txt")]
-    second = rows[str(tmp_path / "b.txt")]
-    assert (first.reused, first.segments) == (0, 1)   # nothing to reuse yet
-    assert (second.reused, second.segments) == (1, 1)  # served from the cache
-
-
-def test_a_failed_file_is_not_recorded(qapp, tmp_path):
-    """The history lists translations, not attempts."""
-    from argonaut.history import TranslationHistory
-
-    english, spanish = make_langs()
-    worker = make_worker([str(tmp_path / "missing.txt")], english, spanish)
-    worker.run()
-
-    assert TranslationHistory.db_info(TranslationHistory.default_db_path())[0] == 0
-
-
-def test_history_can_be_switched_off(qapp, tmp_path):
-    from PyQt5.QtCore import QSettings
-
-    from argonaut.history import TranslationHistory
-
-    QSettings().setValue("history_enabled", False)
-    english, spanish = make_langs()
-    source = tmp_path / "note.txt"
-    source.write_text("hello world")
-    worker = make_worker([str(source)], english, spanish)
-    worker.run()
-
-    assert not worker._history.enabled
-    assert TranslationHistory.db_info(TranslationHistory.default_db_path())[0] == 0
-    assert (tmp_path / "note_es.txt").exists()  # the translation still happened
-
-
-def test_run_reports_failures_and_continues(qapp, tmp_path):
-    english, spanish = make_langs()
-    good = tmp_path / "good.txt"
-    good.write_text("hello world")
-    missing = tmp_path / "missing.txt"
-    done, failed = [], []
-    worker = make_worker([str(missing), str(good)], english, spanish)
-    worker.file_done.connect(lambda i, out, secs: done.append(out))
     worker.file_failed.connect(lambda i, err: failed.append(err))
     worker.run()
-
-    assert len(failed) == 1
-    assert done == [str(tmp_path / "good_es.txt")]
+    assert len(failed) == 1 and "Español → Inglés" in failed[0]
 
 
-def test_run_skips_existing_output(qapp, tmp_path):
-    english, spanish = make_langs()
-    doc = tmp_path / "doc.txt"
-    doc.write_text("hello world")
-    existing = tmp_path / "doc_es.txt"
-    existing.write_text("already translated")
-    skipped, done = [], []
-    worker = make_worker([str(doc)], english, spanish, skip_existing=True)
-    worker.file_skipped.connect(lambda i, out: skipped.append(out))
-    worker.file_done.connect(lambda i, out, secs: done.append(out))
-    worker.run()
-
-    assert skipped == [str(existing)]
-    assert done == []
-    assert existing.read_text() == "already translated"  # left untouched
-
-
-def test_run_overwrites_when_skip_disabled(qapp, tmp_path):
-    english, spanish = make_langs()
-    doc = tmp_path / "doc.txt"
-    doc.write_text("hello world")
-    out = tmp_path / "doc_es.txt"
-    out.write_text("stale")
-    skipped, done = [], []
-    worker = make_worker([str(doc)], english, spanish)  # skip_existing defaults off
-    worker.file_skipped.connect(lambda i, o: skipped.append(o))
-    worker.file_done.connect(lambda i, o, secs: done.append(o))
-    worker.run()
-
-    assert skipped == []
-    assert done == [str(out)]
-    assert "HELLO WORLD" in out.read_text()
-
-
-def test_skip_happens_before_language_detection(qapp, tmp_path):
-    # an existing output is skipped without reading the file, so a document
-    # that detection could not handle still counts as skipped, not failed
-    _, spanish = make_langs()
-    doc = tmp_path / "doc.txt"
-    doc.write_text("")  # empty: language detection would fail
-    (tmp_path / "doc_es.txt").write_text("x")
-    skipped, failed = [], []
-    worker = make_worker(
-        [str(doc)], None, spanish, languages=[spanish], skip_existing=True
-    )
-    worker.file_skipped.connect(lambda i, out: skipped.append(out))
-    worker.file_failed.connect(lambda i, err: failed.append(err))
-    worker.run()
-
-    assert skipped == [str(tmp_path / "doc_es.txt")]
-    assert failed == []
-
-
-def test_run_fails_a_file_whose_language_cannot_be_detected(qapp, tmp_path):
+def test_a_file_whose_language_cannot_be_detected_fails_in_words(qapp, tmp_path):
     _, spanish = make_langs()
     doc = tmp_path / "doc.txt"
     doc.write_text("")  # nothing to detect a language from
@@ -357,30 +106,136 @@ def test_run_fails_a_file_whose_language_cannot_be_detected(qapp, tmp_path):
     assert failed == [tr("err_detect", name="doc.txt")]
 
 
-def test_cancelling_mid_file_stops_the_batch(qapp, tmp_path):
-    """A cancel that lands while a file is being translated ends the run:
-    the interrupted file gets no outcome and the next one never starts."""
+def test_error_text_renders_the_batch_errors_in_the_interface_language(qapp):
     english, spanish = make_langs()
-
-    def translate(text):
-        raise CancelledError()  # what the proxy raises once cancel arrives
-
-    english._translations["es"].translate = translate
-    for name in ("a.txt", "b.txt"):
-        (tmp_path / name).write_text("hello world")
-    started, done, failed, finished = [], [], [], []
-    worker = make_worker(
-        [str(tmp_path / "a.txt"), str(tmp_path / "b.txt")], english, spanish
+    set_language("es")
+    assert error_text(LanguageNotDetected("/d/a.txt")) == tr("err_detect", name="a.txt")
+    assert error_text(AlreadyInLanguage("/d/a.txt", spanish)) == tr(
+        "err_already", name="a.txt", lang="Español"
     )
-    worker.file_started.connect(lambda i, path: started.append(i))
-    worker.file_done.connect(lambda i, out, secs: done.append(out))
-    worker.file_failed.connect(lambda i, err: failed.append(err))
-    worker.finished_all.connect(lambda: finished.append(True))
+    assert error_text(NoModel("/d/a.txt", spanish, english)) == tr(
+        "err_no_model", name="a.txt", src="Español", dst="Inglés"
+    )
+    # anything else is shown as it came: an engine or file error is not ours
+    assert error_text(RuntimeError("disk full")) == "disk full"
+
+
+def test_the_settings_shape_the_batch(qapp, tmp_path):
+    from PyQt5.QtCore import QSettings
+
+    english, spanish = make_langs()
+    worker = make_worker([], english, spanish)
+    worker.run()
+    assert not worker.batch.greedy
+    assert worker._cache_db_path and worker._history_db_path  # both kept on disk
+
+    QSettings().setValue("quality_mode", "fast")
+    QSettings().setValue("cache_enabled", False)
+    QSettings().setValue("history_enabled", False)
+    worker = make_worker([], english, spanish)
+    assert worker.greedy
+    assert worker._cache_db_path is None and worker._history_db_path is None
+
+
+def test_history_can_be_switched_off(qapp, tmp_path):
+    from PyQt5.QtCore import QSettings
+
+    from argonaut_cli.history import TranslationHistory
+
+    QSettings().setValue("history_enabled", False)
+    english, spanish = make_langs()
+    source = tmp_path / "note.txt"
+    source.write_text("hello world")
+    worker = make_worker([str(source)], english, spanish)
     worker.run()
 
-    assert started == [0]  # the second file never started
-    assert done == [] and failed == []  # cancelling is not an error
+    assert TranslationHistory.db_info(TranslationHistory.default_db_path())[0] == 0
+    assert (tmp_path / "note_es.txt").exists()  # the translation still happened
+
+
+def test_history_is_kept_by_default(qapp, tmp_path):
+    from argonaut_cli.history import TranslationHistory
+
+    english, spanish = make_langs()
+    source = tmp_path / "note.txt"
+    source.write_text("hello world")
+    make_worker([str(source)], english, spanish).run()
+    assert TranslationHistory.db_info(TranslationHistory.default_db_path())[0] == 1
+
+
+def test_cancelled_run_stops_before_translating(qapp, tmp_path):
+    english, spanish = make_langs()
+    doc = tmp_path / "doc.txt"
+    doc.write_text("hello world")
+    done, finished = [], []
+    worker = make_worker([str(doc)], english, spanish)
+    worker.file_done.connect(lambda i, out, secs: done.append(out))
+    worker.finished_all.connect(lambda: finished.append(True))
+    worker.cancel()
+    worker.run()
+
+    assert worker.was_cancelled()
+    assert done == []
     assert finished == [True]
+
+
+def test_unexpected_error_still_reports_the_batch_as_finished(qapp, tmp_path):
+    """finished_all is what takes the window out of its busy state: without
+    it the interface stays disabled forever, looking hung."""
+    english, spanish = make_langs()
+    worker = make_worker([str(tmp_path / "doc.txt")], english, spanish)
+    worker.files = None  # anything that breaks the loop itself
+    finished = []
+    worker.finished_all.connect(lambda: finished.append(True))
+
+    with pytest.raises(TypeError):
+        worker.run()
+    assert finished == [True]
+
+
+def test_ui_yield_is_throttled(qapp, monkeypatch):
+    """The interpreter is handed to the interface thread on a timer, not on
+    every page: reading a long book takes about as long as one millisecond
+    per page would, so yielding each time paced the phase, not the work."""
+    from argonaut_gui import worker as worker_mod
+
+    english, spanish = make_langs()
+    worker = make_worker([], english, spanish)
+    clock, slept = [1000.0], []
+    monkeypatch.setattr(worker_mod.time, "monotonic", lambda: clock[0])
+    monkeypatch.setattr(worker_mod.time, "sleep", slept.append)
+
+    worker._yield_to_ui()
+    worker._yield_to_ui()  # same instant
+    assert len(slept) == 1
+
+    clock[0] += worker.YIELD_EVERY / 2
+    worker._yield_to_ui()
+    assert len(slept) == 1  # still inside the window
+
+    clock[0] += worker.YIELD_EVERY
+    worker._yield_to_ui()
+    assert len(slept) == 2
+
+
+def test_every_page_is_still_reported_while_yields_are_throttled(qapp, monkeypatch):
+    """Throttling the hand-over must not throttle the page number: it is
+    what tells the user a long book is still moving."""
+    from argonaut_gui import worker as worker_mod
+
+    english, spanish = make_langs()
+    worker = make_worker([], english, spanish)
+    clock, slept = [1000.0], []
+    monkeypatch.setattr(worker_mod.time, "monotonic", lambda: clock[0])
+    monkeypatch.setattr(worker_mod.time, "sleep", slept.append)
+
+    reported = []
+    worker.phase_changed.connect(lambda key, kw: reported.append(kw["done"]))
+    for page in range(1, 6):
+        worker.on_phase("generating", {"name": "book.pdf", "done": page, "total": 5})
+
+    assert reported == [1, 2, 3, 4, 5]
+    assert len(slept) == 1  # one hand-over for the five pages
 
 
 def test_speed_text_picks_network_units():
@@ -400,7 +255,7 @@ def test_speed_text_can_render_byte_units():
 def test_speed_units_setting_defaults_to_bits(qapp):
     from PyQt5.QtCore import QSettings
 
-    from argonaut.worker import speed_units
+    from argonaut_gui.worker import speed_units
 
     assert speed_units() == "bits"
     QSettings().setValue("speed_units", "bytes")
@@ -412,7 +267,7 @@ def test_speed_units_setting_defaults_to_bits(qapp):
 def test_quality_mode_setting_defaults_to_quality(qapp):
     from PyQt5.QtCore import QSettings
 
-    from argonaut.worker import quality_mode
+    from argonaut_gui.worker import quality_mode
 
     assert quality_mode() == "quality"
     QSettings().setValue("quality_mode", "fast")
@@ -589,76 +444,29 @@ def test_package_install_worker_stops_on_cancel(qapp, monkeypatch):
     assert finished == [0]
 
 
-def test_cancelled_run_stops_before_translating(qapp, tmp_path):
-    english, spanish = make_langs()
-    doc = tmp_path / "doc.txt"
-    doc.write_text("hello world")
-    done, finished = [], []
-    worker = make_worker([str(doc)], english, spanish)
-    worker.file_done.connect(lambda i, out, secs: done.append(out))
-    worker.finished_all.connect(lambda: finished.append(True))
-    worker.cancel()
+def test_package_list_worker_sorts_by_the_translated_names(qapp, monkeypatch):
+    """The order has to follow the names the dialog will show, or a
+    translated list reads as if it were shuffled."""
+    from argonaut_gui.i18n import pair_text
+
+    def pkg(from_code, to_code, from_name, to_name):
+        return types.SimpleNamespace(
+            from_code=from_code, to_code=to_code, from_name=from_name, to_name=to_name
+        )
+
+    available = [
+        pkg("en", "fr", "English", "French"),
+        pkg("es", "en", "Spanish", "English"),
+        pkg("en", "es", "English", "Spanish"),
+    ]
+    monkeypatch.setattr(packages, "get_available", lambda: available)
+    set_language("es")
+    results = []
+    worker = PackageListWorker()
+    worker.listed.connect(lambda pkgs, err: results.append(pkgs))
     worker.run()
-
-    assert worker.was_cancelled()
-    assert done == []
-    assert finished == [True]
-
-
-def test_unexpected_error_still_reports_the_batch_as_finished(qapp, tmp_path):
-    """finished_all is what takes the window out of its busy state: without
-    it the interface stays disabled forever, looking hung."""
-    english, spanish = make_langs()
-    worker = make_worker([str(tmp_path / "doc.txt")], english, spanish)
-    worker.files = None  # anything that breaks the loop itself
-    finished = []
-    worker.finished_all.connect(lambda: finished.append(True))
-
-    with pytest.raises(TypeError):
-        worker.run()
-    assert finished == [True]
-
-
-def test_ui_yield_is_throttled(qapp, monkeypatch):
-    """The interpreter is handed to the interface thread on a timer, not on
-    every page: reading a long book takes about as long as one millisecond
-    per page would, so yielding each time paced the phase, not the work."""
-    from argonaut import worker as worker_mod
-
-    english, spanish = make_langs()
-    worker = make_worker([], english, spanish)
-    clock, slept = [1000.0], []
-    monkeypatch.setattr(worker_mod.time, "monotonic", lambda: clock[0])
-    monkeypatch.setattr(worker_mod.time, "sleep", slept.append)
-
-    worker._yield_to_ui()
-    worker._yield_to_ui()  # same instant
-    assert len(slept) == 1
-
-    clock[0] += worker.YIELD_EVERY / 2
-    worker._yield_to_ui()
-    assert len(slept) == 1  # still inside the window
-
-    clock[0] += worker.YIELD_EVERY
-    worker._yield_to_ui()
-    assert len(slept) == 2
-
-
-def test_every_page_is_still_reported_while_yields_are_throttled(qapp, monkeypatch):
-    """Throttling the hand-over must not throttle the page number: it is
-    what tells the user a long book is still moving."""
-    from argonaut import worker as worker_mod
-
-    english, spanish = make_langs()
-    worker = make_worker([], english, spanish)
-    clock, slept = [1000.0], []
-    monkeypatch.setattr(worker_mod.time, "monotonic", lambda: clock[0])
-    monkeypatch.setattr(worker_mod.time, "sleep", slept.append)
-
-    reported = []
-    worker.phase_changed.connect(lambda key, kw: reported.append(kw["done"]))
-    for page in range(1, 6):
-        worker._report_pages("generating", page, 5)
-
-    assert reported == [1, 2, 3, 4, 5]
-    assert len(slept) == 1  # one hand-over for the five pages
+    assert [pair_text(p) for p in results[0]] == [
+        "Español → Inglés",
+        "Inglés → Español",
+        "Inglés → Francés",
+    ]
