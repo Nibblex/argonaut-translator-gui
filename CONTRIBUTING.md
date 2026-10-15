@@ -1,7 +1,7 @@
 # Contributing to Argonaut
 
-[![CI](https://github.com/Nibblex/Argonaut/actions/workflows/ci.yml/badge.svg)](https://github.com/Nibblex/Argonaut/actions/workflows/ci.yml)
-[![Coverage](https://raw.githubusercontent.com/Nibblex/Argonaut/badges/coverage.svg)](https://github.com/Nibblex/Argonaut/actions/workflows/ci.yml)
+[![CI](https://github.com/Nibblex/argonaut-translator-gui/actions/workflows/ci.yml/badge.svg)](https://github.com/Nibblex/argonaut-translator-gui/actions/workflows/ci.yml)
+[![Coverage](https://raw.githubusercontent.com/Nibblex/argonaut-translator-gui/badges/coverage.svg)](https://github.com/Nibblex/argonaut-translator-gui/actions/workflows/ci.yml)
 
 `README.md` is the user manual — the Help menu opens it — so it stays about
 using Argonaut. Everything about building, testing and releasing it is here.

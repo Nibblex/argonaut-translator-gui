@@ -28,10 +28,10 @@ from argonaut_cli.translation import SUPPORTED_EXTS, TranslationCache
 from argonaut_gui.i18n import tr
 from argonaut_gui.window.file_list import human_size
 
-ISSUES_URL = "https://github.com/Nibblex/Argonaut/issues"
-RELEASES_URL = "https://github.com/Nibblex/Argonaut/releases"
+ISSUES_URL = "https://github.com/Nibblex/argonaut-translator-gui/issues"
+RELEASES_URL = "https://github.com/Nibblex/argonaut-translator-gui/releases"
 # the README is the user manual; #readme anchors past the badges
-MANUAL_URL = "https://github.com/Nibblex/Argonaut#readme"
+MANUAL_URL = "https://github.com/Nibblex/argonaut-translator-gui#readme"
 
 # distribution names, as published on PyPI; Argonaut's own engine first,
 # since it is released apart from the window

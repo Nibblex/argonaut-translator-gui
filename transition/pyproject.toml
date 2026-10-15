@@ -29,7 +29,7 @@ classifiers = [
 dependencies = ["argonaut-translator-gui>=2"]
 
 [project.urls]
-Homepage = "https://github.com/Nibblex/Argonaut"
+Homepage = "https://github.com/Nibblex/argonaut-translator-gui"
 
 # Upgrading from 1.x installs the new packages first and removes 1.x last,
 # and 1.x's record lists bin/argonaut: removing it would take the command

@@ -90,7 +90,7 @@ def test_about_text_renders(code):
     text = tr("about_text", version="9.9.9", formats=".txt .pdf")
     assert "Argonaut 9.9.9" in text
     assert ".txt .pdf" in text
-    assert "github.com/Nibblex/Argonaut" in text
+    assert "github.com/Nibblex/argonaut-translator-gui" in text
 
 
 # menus that share a menu bar (or a parent menu) compete for the same

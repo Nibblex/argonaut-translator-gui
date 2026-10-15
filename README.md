@@ -2,8 +2,8 @@
 
 [![PyPI](https://img.shields.io/pypi/v/argonaut-translator-gui)](https://pypi.org/project/argonaut-translator-gui/)
 [![Python versions](https://img.shields.io/pypi/pyversions/argonaut-translator-gui)](https://pypi.org/project/argonaut-translator-gui/)
-[![License: GPL-3.0](https://img.shields.io/github/license/Nibblex/Argonaut)](LICENSE)
-[![Release](https://img.shields.io/github/v/tag/Nibblex/Argonaut?label=release)](https://github.com/Nibblex/Argonaut/tags)
+[![License: GPL-3.0](https://img.shields.io/github/license/Nibblex/argonaut-translator-gui)](LICENSE)
+[![Release](https://img.shields.io/github/v/tag/Nibblex/argonaut-translator-gui?label=release)](https://github.com/Nibblex/argonaut-translator-gui/tags)
 
 Argonaut translates documents — `.txt` `.docx` `.odt` `.odp` `.pptx` `.epub`
 `.html` `.srt` `.pdf` — without sending them anywhere. Translation runs

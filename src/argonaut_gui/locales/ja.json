@@ -159,5 +159,5 @@
   "about_credits_intro": "<p>Argonaut は次のプロジェクトを利用しています:</p>",
   "about_credits_nllb": "<p>オプションの NLLB-200 モデルは Meta AI が <a href='https://creativecommons.org/licenses/by-nc/4.0/'>CC-BY-NC 4.0</a> ライセンス（非商用）で公開しています。</p>",
   "about_title": "Argonaut について",
-  "about_text": "<h3>Argonaut {version}</h3><p>ミニマルなオフライン文書翻訳ツール。</p><p>翻訳は <a href='https://www.argosopentech.com/'>Argos Translate</a> と <a href='https://github.com/LibreTranslate/argos-translate-files'>argos-translate-files</a> を使ってすべてお使いのコンピューター上で実行され、文書が端末の外に出ることはありません。</p><p>対応形式: {formats}</p><p><a href='https://github.com/Nibblex/Argonaut'>GitHub のソースコード</a></p><p>© 2026 Sergio Rodríguez · <a href='https://choosealicense.com/licenses/gpl-3.0/'>GNU GPL v3</a> ライセンスで公開。</p>"
+  "about_text": "<h3>Argonaut {version}</h3><p>ミニマルなオフライン文書翻訳ツール。</p><p>翻訳は <a href='https://www.argosopentech.com/'>Argos Translate</a> と <a href='https://github.com/LibreTranslate/argos-translate-files'>argos-translate-files</a> を使ってすべてお使いのコンピューター上で実行され、文書が端末の外に出ることはありません。</p><p>対応形式: {formats}</p><p><a href='https://github.com/Nibblex/argonaut-translator-gui'>GitHub のソースコード</a></p><p>© 2026 Sergio Rodríguez · <a href='https://choosealicense.com/licenses/gpl-3.0/'>GNU GPL v3</a> ライセンスで公開。</p>"
 }
