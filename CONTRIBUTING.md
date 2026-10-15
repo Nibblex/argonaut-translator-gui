@@ -79,9 +79,7 @@ All modules live in the `src/argonaut_gui/` package:
 - `locales/language_names.json` — the translation languages' names in each of
   those interface languages (generated; see below).
 
-Packaging lives at the top level: `pyproject.toml` is the PyPI package, and
-`transition/` the last release of `argonaut-translator`, the name Argonaut
-was published under before the split (see Releasing). `data/` keeps the
+Packaging is `pyproject.toml`, the PyPI package. `data/` keeps the
 desktop entry and the icon, which the wheel does not install; for a menu
 entry, copy them by hand under `~/.local/share` (`applications/` and
 `icons/hicolor/scalable/apps/`).
@@ -150,12 +148,7 @@ version is permanent on PyPI once uploaded. CI never runs on `dev` — it
 watches `main` and pull requests only — so the local suite is what gates the
 merge.
 
-The same workflow builds `transition/` and uploads it with `skip-existing`:
-`argonaut-translator` 2.0.0 goes up once, with the first release after the
-split, and every later release finds it already there. It installs nothing
-but depends on `argonaut-translator-gui`, so `pip install -U
-argonaut-translator` moves an old installation over; it also declares the
-`argonaut` command, because pip removes the old version last, after the new
-packages are in, and the old version's record lists that command. PyPI
-trusts this workflow for both `argonaut-translator-gui` and
-`argonaut-translator`.
+Up to 1.8.0 Argonaut was published as `argonaut-translator`. That project is
+no longer on PyPI, so there is no upgrade path from it: the README tells its
+users to uninstall it before installing `argonaut-translator-gui`, because
+both provide the `argonaut` command.
