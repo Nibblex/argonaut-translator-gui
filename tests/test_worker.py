@@ -5,11 +5,12 @@ import types
 
 import pytest
 
-from argonaut import nllb, packages
-from argonaut.batch import AlreadyInLanguage, LanguageNotDetected, NoModel
-from argonaut.i18n import set_language, tr
-from argonaut.translation import CancelledError
-from argonaut.worker import (
+from argonaut_cli import nllb, packages
+from argonaut_cli.batch import AlreadyInLanguage, LanguageNotDetected, NoModel
+from argonaut_cli.translation import CancelledError
+
+from argonaut_gui.i18n import set_language, tr
+from argonaut_gui.worker import (
     MegabyteProgress,
     ModelDownloadWorker,
     PackageInstallWorker,
@@ -20,7 +21,13 @@ from argonaut.worker import (
     speed_text,
 )
 from tests.conftest import FakeLanguage, FakeTranslation
-from tests.test_translation import ENGLISH_TEXT
+
+# enough plain English for the language detector to be sure of itself
+ENGLISH_TEXT = (
+    "The quick brown fox jumps over the lazy dog. "
+    "This paragraph is written in plain English so that the language "
+    "detector has more than enough material to work with reliably."
+)
 
 
 def make_langs():
@@ -133,7 +140,7 @@ def test_the_settings_shape_the_batch(qapp, tmp_path):
 def test_history_can_be_switched_off(qapp, tmp_path):
     from PyQt5.QtCore import QSettings
 
-    from argonaut.history import TranslationHistory
+    from argonaut_cli.history import TranslationHistory
 
     QSettings().setValue("history_enabled", False)
     english, spanish = make_langs()
@@ -147,7 +154,7 @@ def test_history_can_be_switched_off(qapp, tmp_path):
 
 
 def test_history_is_kept_by_default(qapp, tmp_path):
-    from argonaut.history import TranslationHistory
+    from argonaut_cli.history import TranslationHistory
 
     english, spanish = make_langs()
     source = tmp_path / "note.txt"
@@ -190,7 +197,7 @@ def test_ui_yield_is_throttled(qapp, monkeypatch):
     """The interpreter is handed to the interface thread on a timer, not on
     every page: reading a long book takes about as long as one millisecond
     per page would, so yielding each time paced the phase, not the work."""
-    from argonaut import worker as worker_mod
+    from argonaut_gui import worker as worker_mod
 
     english, spanish = make_langs()
     worker = make_worker([], english, spanish)
@@ -214,7 +221,7 @@ def test_ui_yield_is_throttled(qapp, monkeypatch):
 def test_every_page_is_still_reported_while_yields_are_throttled(qapp, monkeypatch):
     """Throttling the hand-over must not throttle the page number: it is
     what tells the user a long book is still moving."""
-    from argonaut import worker as worker_mod
+    from argonaut_gui import worker as worker_mod
 
     english, spanish = make_langs()
     worker = make_worker([], english, spanish)
@@ -248,7 +255,7 @@ def test_speed_text_can_render_byte_units():
 def test_speed_units_setting_defaults_to_bits(qapp):
     from PyQt5.QtCore import QSettings
 
-    from argonaut.worker import speed_units
+    from argonaut_gui.worker import speed_units
 
     assert speed_units() == "bits"
     QSettings().setValue("speed_units", "bytes")
@@ -260,7 +267,7 @@ def test_speed_units_setting_defaults_to_bits(qapp):
 def test_quality_mode_setting_defaults_to_quality(qapp):
     from PyQt5.QtCore import QSettings
 
-    from argonaut.worker import quality_mode
+    from argonaut_gui.worker import quality_mode
 
     assert quality_mode() == "quality"
     QSettings().setValue("quality_mode", "fast")
@@ -440,7 +447,7 @@ def test_package_install_worker_stops_on_cancel(qapp, monkeypatch):
 def test_package_list_worker_sorts_by_the_translated_names(qapp, monkeypatch):
     """The order has to follow the names the dialog will show, or a
     translated list reads as if it were shuffled."""
-    from argonaut.i18n import pair_text
+    from argonaut_gui.i18n import pair_text
 
     def pkg(from_code, to_code, from_name, to_name):
         return types.SimpleNamespace(

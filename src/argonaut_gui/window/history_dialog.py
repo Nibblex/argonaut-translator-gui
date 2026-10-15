@@ -16,9 +16,10 @@ from PyQt5.QtWidgets import (
     QVBoxLayout,
 )
 
-from argonaut.history import TranslationHistory
-from argonaut.i18n import tr
-from argonaut.window.translation_run import TranslationRunMixin
+from argonaut_cli.history import TranslationHistory
+
+from argonaut_gui.i18n import tr
+from argonaut_gui.window.translation_run import TranslationRunMixin
 
 DATE_COL = 0
 FILE_COL = 1

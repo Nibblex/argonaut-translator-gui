@@ -8,14 +8,15 @@ from PyQt5.QtWidgets import QMessageBox
 import argostranslate.settings
 import argostranslate.translate
 
-from argonaut import nllb
-from argonaut.history import TranslationHistory
-from argonaut.i18n import lang_text, sorted_languages, tr
-from argonaut.package_dialog import PackageDialog
-from argonaut.translation import TranslationCache
-from argonaut.window.file_list import human_size
-from argonaut.window.history_dialog import HistoryDialog
-from argonaut.worker import ModelDownloadWorker, quality_mode, speed_text, speed_units
+from argonaut_cli import nllb
+from argonaut_cli.history import TranslationHistory
+from argonaut_cli.translation import TranslationCache
+
+from argonaut_gui.i18n import lang_text, sorted_languages, tr
+from argonaut_gui.package_dialog import PackageDialog
+from argonaut_gui.window.file_list import human_size
+from argonaut_gui.window.history_dialog import HistoryDialog
+from argonaut_gui.worker import ModelDownloadWorker, quality_mode, speed_text, speed_units
 
 # Argos' own beam width, captured before any fast-mode override touches it
 ARGOS_DEFAULT_BEAM = argostranslate.settings.beam_size

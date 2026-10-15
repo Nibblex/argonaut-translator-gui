@@ -25,8 +25,9 @@ from PyQt5.QtWidgets import (
 
 import argostranslate.settings
 
-from argonaut import nllb
-from argonaut.i18n import (
+from argonaut_cli import nllb
+
+from argonaut_gui.i18n import (
     LANGUAGES,
     current_language,
     lang_text,
@@ -34,9 +35,9 @@ from argonaut.i18n import (
     sorted_languages,
     tr,
 )
-from argonaut.window.about_dialog import ISSUES_URL, MANUAL_URL, AboutDialog
-from argonaut.window.engine import EngineMixin
-from argonaut.window.file_list import (
+from argonaut_gui.window.about_dialog import ISSUES_URL, MANUAL_URL, AboutDialog
+from argonaut_gui.window.engine import EngineMixin
+from argonaut_gui.window.file_list import (
     COLUMN_KEYS,
     FILE_STATE_ROLE,
     FOLDER_COL,
@@ -47,10 +48,10 @@ from argonaut.window.file_list import (
     TYPE_COL,
     FileTree,
 )
-from argonaut.window.files import FileListMixin
-from argonaut.window.theme import THEMES, apply_theme, current_theme
-from argonaut.window.translation_run import TranslationRunMixin
-from argonaut.worker import quality_mode, speed_units
+from argonaut_gui.window.files import FileListMixin
+from argonaut_gui.window.theme import THEMES, apply_theme, current_theme
+from argonaut_gui.window.translation_run import TranslationRunMixin
+from argonaut_gui.worker import quality_mode, speed_units
 
 
 class MainWindow(FileListMixin, EngineMixin, TranslationRunMixin, QMainWindow):

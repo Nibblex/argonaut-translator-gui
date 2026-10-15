@@ -1,4 +1,4 @@
-"""Writes src/argonaut/locales/language_names.json from CLDR data: the name of
+"""Writes src/argonaut_gui/locales/language_names.json from CLDR data: the name of
 every language Argonaut can translate, in every language its interface
 speaks.
 
@@ -23,7 +23,7 @@ from babel import Locale
 
 OUTPUT = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-    "src", "argonaut", "locales", "language_names.json",
+    "src", "argonaut_gui", "locales", "language_names.json",
 )
 
 UI = ["es", "fr", "de", "it", "pt", "ru", "zh", "ja", "nl", "pl", "tr"]

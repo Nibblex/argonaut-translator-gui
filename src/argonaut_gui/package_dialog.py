@@ -17,9 +17,10 @@ from PyQt5.QtWidgets import (
     QVBoxLayout,
 )
 
-from argonaut import packages
-from argonaut.i18n import pair_text, tr
-from argonaut.worker import (
+from argonaut_cli import packages
+
+from argonaut_gui.i18n import pair_text, tr
+from argonaut_gui.worker import (
     PackageInstallWorker,
     PackageListWorker,
     PackageSizeWorker,

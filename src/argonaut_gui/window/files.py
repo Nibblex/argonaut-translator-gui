@@ -8,9 +8,10 @@ from PyQt5.QtCore import QSettings, QUrl, Qt
 from PyQt5.QtGui import QDesktopServices
 from PyQt5.QtWidgets import QAction, QFileDialog, QMenu
 
-from argonaut.i18n import tr
-from argonaut.translation import SUPPORTED_EXTS
-from argonaut.window.file_list import (
+from argonaut_cli.translation import SUPPORTED_EXTS
+
+from argonaut_gui.i18n import tr
+from argonaut_gui.window.file_list import (
     COLUMN_KEYS,
     FILE_MTIME_ROLE,
     FILE_PATH_ROLE,

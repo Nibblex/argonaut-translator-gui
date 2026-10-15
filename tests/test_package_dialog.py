@@ -3,9 +3,11 @@ import types
 import pytest
 from PyQt5.QtCore import Qt
 
-from argonaut import packages, worker
-from argonaut.i18n import set_language, tr
-from argonaut.package_dialog import SIZE_ROLE, PackageDialog
+from argonaut_cli import packages
+
+from argonaut_gui import worker
+from argonaut_gui.i18n import set_language, tr
+from argonaut_gui.package_dialog import SIZE_ROLE, PackageDialog
 
 
 def fake_pkg(from_code, to_code, from_name, to_name, version="1.9"):
@@ -330,7 +332,7 @@ def test_update_only_touches_outdated_packages(dialog, qtbot, monkeypatch, insta
 def test_sizes_are_fetched_cached_and_shown(qtbot, monkeypatch, installed):
     from PyQt5.QtCore import QSettings
 
-    from argonaut.package_dialog import size_key
+    from argonaut_gui.package_dialog import size_key
 
     monkeypatch.setattr(worker, "available_packages", lambda: [EN_ES, EN_FR])
     monkeypatch.setattr(

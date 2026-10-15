@@ -1,5 +1,5 @@
-from argonaut.i18n import tr
-from argonaut.window.about_dialog import AboutDialog, diagnostic_report
+from argonaut_gui.i18n import tr
+from argonaut_gui.window.about_dialog import AboutDialog, diagnostic_report
 
 
 def make_dialog(qtbot, backend="argos", language_count=4):
@@ -23,7 +23,7 @@ def test_diagnostic_report_covers_the_environment(qapp):
 
 
 def test_missing_dependency_reports_an_unknown_version():
-    from argonaut.window.about_dialog import _dist_version
+    from argonaut_gui.window.about_dialog import _dist_version
 
     # a broken environment must not break the About dialog itself
     assert _dist_version("argonaut-nonexistent-dep") == "?"
@@ -64,7 +64,7 @@ def test_copy_button_copies_the_report_and_confirms(qtbot, monkeypatch):
 
 
 def test_dialog_renders_in_the_current_language(qtbot):
-    from argonaut import i18n
+    from argonaut_gui import i18n
 
     i18n.set_language("es")
     dialog = make_dialog(qtbot)

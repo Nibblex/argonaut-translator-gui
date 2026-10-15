@@ -1,7 +1,7 @@
 # Argonaut
 
-[![PyPI](https://img.shields.io/pypi/v/argonaut-translator)](https://pypi.org/project/argonaut-translator/)
-[![Python versions](https://img.shields.io/pypi/pyversions/argonaut-translator)](https://pypi.org/project/argonaut-translator/)
+[![PyPI](https://img.shields.io/pypi/v/argonaut-translator-gui)](https://pypi.org/project/argonaut-translator-gui/)
+[![Python versions](https://img.shields.io/pypi/pyversions/argonaut-translator-gui)](https://pypi.org/project/argonaut-translator-gui/)
 [![License: GPL-3.0](https://img.shields.io/github/license/Nibblex/Argonaut)](LICENSE)
 [![Release](https://img.shields.io/github/v/tag/Nibblex/Argonaut?label=release)](https://github.com/Nibblex/Argonaut/tags)
 
@@ -16,10 +16,23 @@ Argonaut, see [CONTRIBUTING.md](CONTRIBUTING.md).
 ## Installing
 
 ```bash
-pip install argonaut-translator
+pip install argonaut-translator-gui
 ```
 
-That provides the `argonaut` command. You need Python 3.10 or newer.
+That provides the `argonaut` command, and with it `argonaut-cli`, the same
+engine from the command line (see [below](#from-the-command-line)). You need
+Python 3.10 or newer.
+
+Argonaut used to be published as `argonaut-translator`. If you have that
+installed, upgrading it moves you over by itself, keeping the `argonaut`
+command:
+
+```bash
+pip install -U argonaut-translator
+```
+
+Your language packages, the NLLB model, the translation cache, the history
+and your settings stay where they were.
 
 Before translating anything you need at least one **language package**.
 Open *Settings → Manage language packages…*, pick the pairs you want and
@@ -152,6 +165,24 @@ When you close the window, Argonaut stores the interface language, the
 source and target languages, the output folder and the window's size and
 position, and restores them next time. If a saved language is no longer
 installed, or the folder is gone, it falls back to the default.
+
+## From the command line
+
+Everything that translates here is also a command, `argonaut-cli`, which is
+installed along with Argonaut — or on its own, without the window, from
+[argonaut-translator-cli](https://github.com/Nibblex/argonaut-translator-cli),
+whose page is its manual:
+
+```bash
+argonaut-cli translate report.pdf --to es
+argonaut-cli packages install en-es
+```
+
+The two share the language packages, the NLLB model, the translation cache
+and the history, so a document translated in one is answered from the cache
+in the other, and both appear in the same history. How long cache and
+history entries are kept is set here; the command line never discards them
+by itself.
 
 ## Help
 

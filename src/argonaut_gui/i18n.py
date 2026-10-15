@@ -38,7 +38,7 @@ LANGUAGES = [
     ("tr", "Türkçe"),
 ]
 
-_LOCALES = files("argonaut") / "locales"
+_LOCALES = files("argonaut_gui") / "locales"
 # the one file in there that is not an interface language: it is generated,
 # and it holds a section for every language rather than being one of them
 _NAMES_FILE = "language_names.json"

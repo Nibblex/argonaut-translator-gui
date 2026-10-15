@@ -21,19 +21,22 @@ from PyQt5.QtWidgets import (
 
 import argostranslate.settings
 
-from argonaut import nllb
-from argonaut.history import TranslationHistory
-from argonaut.i18n import tr
-from argonaut.translation import SUPPORTED_EXTS, TranslationCache
-from argonaut.window.file_list import human_size
+from argonaut_cli import nllb
+from argonaut_cli.history import TranslationHistory
+from argonaut_cli.translation import SUPPORTED_EXTS, TranslationCache
+
+from argonaut_gui.i18n import tr
+from argonaut_gui.window.file_list import human_size
 
 ISSUES_URL = "https://github.com/Nibblex/Argonaut/issues"
 RELEASES_URL = "https://github.com/Nibblex/Argonaut/releases"
 # the README is the user manual; #readme anchors past the badges
 MANUAL_URL = "https://github.com/Nibblex/Argonaut#readme"
 
-# distribution names, as published on PyPI
+# distribution names, as published on PyPI; Argonaut's own engine first,
+# since it is released apart from the window
 DEPENDENCIES = (
+    "argonaut-translator-cli",
     "argos-translate-lt",
     "argos-translate-files",
     "ctranslate2",

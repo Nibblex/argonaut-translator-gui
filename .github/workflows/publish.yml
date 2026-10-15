@@ -18,29 +18,44 @@ jobs:
         run: |
           pip install build
           python -m build
+          # argonaut-translator, the name Argonaut had before the split: an
+          # empty package depending on this one, so upgrading it moves an
+          # installation over (see transition/pyproject.toml)
+          python -m build transition --outdir transition-dist
 
       - name: Check the distributions
         run: |
           pip install twine
-          twine check dist/*
+          twine check dist/* transition-dist/*
 
       - uses: actions/upload-artifact@v7
         with:
           name: dist
-          path: dist/
+          path: |
+            dist/
+            transition-dist/
 
   publish:
     needs: build
     runs-on: ubuntu-latest
     environment:
       name: pypi
-      url: https://pypi.org/p/argonaut-translator
+      url: https://pypi.org/p/argonaut-translator-gui
     permissions:
       id-token: write
     steps:
       - uses: actions/download-artifact@v8
         with:
           name: dist
-          path: dist/
 
       - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/
+
+      # uploaded once, with 2.0.0; every later release finds it already
+      # there. Kept apart so a release whose version was not bumped still
+      # fails above instead of being skipped in silence
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: transition-dist/
+          skip-existing: true

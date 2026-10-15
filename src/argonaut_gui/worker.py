@@ -5,11 +5,12 @@ import time
 
 from PyQt5.QtCore import QSettings, QThread, pyqtSignal
 
-from argonaut import nllb, packages
-from argonaut.batch import AlreadyInLanguage, Batch, LanguageNotDetected, Listener, NoModel
-from argonaut.history import TranslationHistory
-from argonaut.i18n import lang_text, pair_text, sorted_packages, tr
-from argonaut.translation import CancelledError, TranslationCache
+from argonaut_cli import nllb, packages
+from argonaut_cli.batch import AlreadyInLanguage, Batch, LanguageNotDetected, Listener, NoModel
+from argonaut_cli.history import TranslationHistory
+from argonaut_cli.translation import CancelledError, TranslationCache
+
+from argonaut_gui.i18n import lang_text, pair_text, sorted_packages, tr
 
 
 class CancellableThread(QThread):
@@ -211,7 +212,7 @@ def error_text(error):
 
 
 class TranslateWorker(CancellableThread, Listener):
-    """Runs a :class:`~argonaut.batch.Batch` on its own thread and turns
+    """Runs a :class:`~argonaut_cli.batch.Batch` on its own thread and turns
     what it reports into signals for the window. The settings that shape
     the run (cache, history, quality) are read here, on the interface
     thread, when the run is set up."""
