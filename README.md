@@ -23,16 +23,19 @@ That provides the `argonaut` command, and with it `argonaut-cli`, the same
 engine from the command line (see [below](#from-the-command-line)). You need
 Python 3.10 or newer.
 
-Argonaut used to be published as `argonaut-translator`. If you have that
-installed, upgrading it moves you over by itself, keeping the `argonaut`
-command:
+Argonaut used to be published as `argonaut-translator`, which is no longer
+on PyPI. If you have it installed, remove it before installing the new
+package, since both provide the `argonaut` command:
 
 ```bash
-pip install -U argonaut-translator
+pip uninstall argonaut-translator
+pip install argonaut-translator-gui
 ```
 
 Your language packages, the NLLB model, the translation cache, the history
-and your settings stay where they were.
+and your settings stay where they were. If you installed the new package
+first, the uninstall takes the `argonaut` command with it; reinstalling
+brings it back: `pip install --force-reinstall --no-deps argonaut-translator-gui`.
 
 Before translating anything you need at least one **language package**.
 Open *Settings → Manage language packages…*, pick the pairs you want and
