@@ -3,7 +3,7 @@ import types
 import pytest
 from PyQt5.QtCore import Qt
 
-from argonaut import packages
+from argonaut import packages, worker
 from argonaut.i18n import set_language, tr
 from argonaut.package_dialog import SIZE_ROLE, PackageDialog
 
@@ -37,7 +37,7 @@ def installed(monkeypatch):
 
 @pytest.fixture
 def dialog(qtbot, monkeypatch, installed):
-    monkeypatch.setattr(packages, "get_available", lambda: [EN_ES, EN_FR, EN_DE])
+    monkeypatch.setattr(worker, "available_packages", lambda: [EN_ES, EN_FR, EN_DE])
     dlg = PackageDialog()
     qtbot.addWidget(dlg)
     qtbot.waitUntil(lambda: dlg.package_list.count() == 3, timeout=5000)
@@ -113,7 +113,7 @@ def test_filter_hides_non_matching_packages(dialog):
 def spanish_dialog(qtbot, monkeypatch, installed):
     """The same dialog, opened with the interface in Spanish."""
     set_language("es")
-    monkeypatch.setattr(packages, "get_available", lambda: [EN_ES, EN_FR, EN_DE])
+    monkeypatch.setattr(worker, "available_packages", lambda: [EN_ES, EN_FR, EN_DE])
     dlg = PackageDialog()
     qtbot.addWidget(dlg)
     qtbot.waitUntil(lambda: dlg.package_list.count() == 3, timeout=5000)
@@ -332,7 +332,7 @@ def test_sizes_are_fetched_cached_and_shown(qtbot, monkeypatch, installed):
 
     from argonaut.package_dialog import size_key
 
-    monkeypatch.setattr(packages, "get_available", lambda: [EN_ES, EN_FR])
+    monkeypatch.setattr(worker, "available_packages", lambda: [EN_ES, EN_FR])
     monkeypatch.setattr(
         packages,
         "get_size",
@@ -521,7 +521,7 @@ def test_index_error_is_shown(qtbot, monkeypatch):
     def broken_index():
         raise RuntimeError("offline")
 
-    monkeypatch.setattr(packages, "get_available", broken_index)
+    monkeypatch.setattr(worker, "available_packages", broken_index)
     dlg = PackageDialog()
     qtbot.addWidget(dlg)
     qtbot.waitUntil(lambda: not dlg.lister.isRunning(), timeout=5000)

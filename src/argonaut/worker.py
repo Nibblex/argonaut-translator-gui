@@ -1,21 +1,15 @@
-"""Worker thread that translates the file list without blocking the UI."""
+"""Worker threads that keep translation, downloads and the package index
+off the interface thread."""
 
-import os
 import time
 
 from PyQt5.QtCore import QSettings, QThread, pyqtSignal
-from argostranslatefiles import argostranslatefiles
 
 from argonaut import nllb, packages
+from argonaut.batch import AlreadyInLanguage, Batch, LanguageNotDetected, Listener, NoModel
 from argonaut.history import TranslationHistory
-from argonaut.i18n import lang_text, tr
-from argonaut.pdf import FastPdfTranslator
-from argonaut.translation import (
-    CancelledError,
-    ProgressTranslation,
-    TranslationCache,
-    detect_language,
-)
+from argonaut.i18n import lang_text, pair_text, sorted_packages, tr
+from argonaut.translation import CancelledError, TranslationCache
 
 
 class CancellableThread(QThread):
@@ -119,6 +113,13 @@ class ModelDownloadWorker(CancellableThread):
             self.download_finished.emit(True, "")
 
 
+def available_packages():
+    """The Argos package index in the order the user reads it. The engine
+    sorts by the English names, which a translated list would show as if
+    shuffled."""
+    return sorted_packages(packages.get_available())
+
+
 class PackageListWorker(QThread):
     """Fetches the Argos package index without blocking the UI."""
 
@@ -126,7 +127,7 @@ class PackageListWorker(QThread):
 
     def run(self):
         try:
-            available = packages.get_available()
+            available = available_packages()
         except Exception as exc:  # noqa: BLE001
             self.listed.emit([], str(exc))
         else:
@@ -176,9 +177,7 @@ class PackageInstallWorker(CancellableThread):
             if self._cancelled:
                 break
             self._report.reset()  # each package has its own byte count
-            self.package_started.emit(
-                i, len(self.to_install), packages.pair_text(pkg)
-            )
+            self.package_started.emit(i, len(self.to_install), pair_text(pkg))
             try:
                 packages.install(
                     pkg, on_progress=self._report, is_cancelled=self.was_cancelled
@@ -186,17 +185,36 @@ class PackageInstallWorker(CancellableThread):
             except CancelledError:
                 break
             except Exception as exc:  # noqa: BLE001
-                self.package_failed.emit(packages.pair_text(pkg), str(exc))
+                self.package_failed.emit(pair_text(pkg), str(exc))
             else:
                 installed += 1
         self.install_finished.emit(installed)
 
 
-class TranslateWorker(CancellableThread):
-    """Translates a list of files. If src_lang is None, detects each
-    file's language separately. Segments repeated across the batch are
-    served from a shared cache, and files whose output already exists
-    can be skipped instead of retranslated."""
+def error_text(error):
+    """The message for a file the batch could not translate, in the
+    interface language. The batch's own errors carry the file and the
+    languages rather than a sentence, so the names read in the interface
+    language too; anything else is shown as it came."""
+    if isinstance(error, LanguageNotDetected):
+        return tr("err_detect", name=error.name)
+    if isinstance(error, AlreadyInLanguage):
+        return tr("err_already", name=error.name, lang=lang_text(error.lang))
+    if isinstance(error, NoModel):
+        return tr(
+            "err_no_model",
+            name=error.name,
+            src=lang_text(error.src),
+            dst=lang_text(error.dst),
+        )
+    return str(error)
+
+
+class TranslateWorker(CancellableThread, Listener):
+    """Runs a :class:`~argonaut.batch.Batch` on its own thread and turns
+    what it reports into signals for the window. The settings that shape
+    the run (cache, history, quality) are read here, on the interface
+    thread, when the run is set up."""
 
     file_started = pyqtSignal(int, str)
     file_done = pyqtSignal(int, str, float)  # index, output path, seconds
@@ -224,183 +242,65 @@ class TranslateWorker(CancellableThread):
         self.output_dir = output_dir  # None = next to each original
         self.skip_existing = skip_existing
         self.engine_id = engine_id
-        self._last_emit = 0.0
         self._last_yield = 0.0
-        self._current_name = ""
-        self._total_chunks = 0  # 0 until the file says how much work it holds
-        self._batch_segments = 0  # cacheable segments seen across the batch
-        self._pkg_versions = None  # pair -> version, read once per batch
-        # shared across every file so a repeated paragraph translates once
-        # for the whole batch (namespaced by engine, model version and
-        # language pair inside the proxy); the settings are read here but
-        # the cache itself is opened in run(): opening prunes expired
-        # entries, too much work for the click handler that constructs it
         cache_on = QSettings().value("cache_enabled", True, type=bool)
-        self._greedy = quality_mode() == "fast"
+        self.greedy = quality_mode() == "fast"
         self._cache_ttl_days = QSettings().value("cache_ttl_days", 90, type=int)
         self._cache_db_path = TranslationCache.default_db_path() if cache_on else None
-        self._batch_cache = None
-        # the history is opened alongside the cache, and for the same reason:
-        # opening it prunes expired entries
         history_on = QSettings().value("history_enabled", True, type=bool)
         self._history_ttl_days = QSettings().value("history_ttl_days", 90, type=int)
         self._history_db_path = (
             TranslationHistory.default_db_path() if history_on else None
         )
-        self._history = None
-
-    def output_path_for(self, to_code, file_path):
-        # same naming scheme as the library, but honouring the output
-        # folder if one was chosen
-        name, ext = os.path.splitext(os.path.basename(file_path))
-        dir_path = self.output_dir or os.path.dirname(file_path)
-        return os.path.join(dir_path, f"{name}_{to_code}{ext}")
-
-    def get_output_path(self, underlying_translation, file_path):
-        return self.output_path_for(underlying_translation.to_lang.code, file_path)
-
-    def expected_output_path(self, file_path):
-        # the target is always the destination language, whatever the source
-        # turns out to be, so the skip check needs no language detection
-        return self.output_path_for(self.dst_lang.code, file_path)
-
-    def resolve_translation(self, index, path):
-        src = self.src_lang
-        name = os.path.basename(path)
-        if src is None:
-            src = detect_language(path, self.languages)
-            if src is None:
-                raise RuntimeError(tr("err_detect", name=name))
-            self.language_detected.emit(index, lang_text(src))
-        if src is self.dst_lang:
-            raise RuntimeError(
-                tr("err_already", name=name, lang=lang_text(self.dst_lang))
-            )
-        translation = src.get_translation(self.dst_lang)
-        if translation is None:
-            raise RuntimeError(
-                tr(
-                    "err_no_model",
-                    name=name,
-                    src=lang_text(src),
-                    dst=lang_text(self.dst_lang),
-                )
-            )
-        return translation
-
-    def _engine_version(self, translation):
-        """Version tag for the cache namespace, so entries produced by an
-        older model stop being served after a package upgrade."""
-        if self.engine_id != "argos":
-            version = nllb.MODEL_REPO  # one fixed model, replaced only by us
-        else:
-            if self._pkg_versions is None:
-                self._pkg_versions = packages.installed_versions()
-            pair = (translation.from_lang.code, translation.to_lang.code)
-            version = self._pkg_versions.get(pair, "")
-        # greedy output is not beam output: the modes never serve each
-        # other's entries, and quality-mode keys stay as they always were
-        return f"{version}+greedy" if self._greedy else version
+        self.batch = None
 
     def run(self):
-        self._batch_cache = TranslationCache(
-            self._cache_db_path, ttl_days=self._cache_ttl_days
-        )
-        self._history = TranslationHistory(
-            self._history_db_path, ttl_days=self._history_ttl_days
-        )
         try:
-            self._translate_files()
+            self.batch = Batch(
+                self.src_lang, self.dst_lang, self.languages, self.files,
+                output_dir=self.output_dir,
+                skip_existing=self.skip_existing,
+                engine_id=self.engine_id,
+                greedy=self.greedy,
+                cache_db_path=self._cache_db_path,
+                cache_ttl_days=self._cache_ttl_days,
+                history_db_path=self._history_db_path,
+                history_ttl_days=self._history_ttl_days,
+                listener=self,
+                is_cancelled=self.was_cancelled,
+            )
+            self.batch.run()
         finally:
-            # a cancelled batch has to let go of its database connection and
-            # of the segments it has translated so far, just like a finished one
-            self._batch_cache.close()
-            self._history.close()
             # the window leaves its busy state on this signal, so it is
             # emitted from a finally: an unexpected error must never leave the
             # interface stuck with every control disabled
             self.finished_all.emit()
 
-    def _translate_files(self):
-        for i, path in enumerate(self.files):
-            if self._cancelled:
-                break
-            self.file_started.emit(i, path)
-            self._current_name = os.path.basename(path)
-            file_start = time.monotonic()
-            try:
-                if self.skip_existing:
-                    existing = self.expected_output_path(path)
-                    if os.path.exists(existing):
-                        self.file_skipped.emit(i, existing)
-                        continue
-                translation = self.resolve_translation(i, path)
-                self._total_chunks = 0
-                self.progress_update.emit(0, 0)
-                proxy = ProgressTranslation(
-                    translation,
-                    self._report_progress,
-                    self.was_cancelled,
-                    cache=self._batch_cache,
-                    engine_id=self.engine_id,
-                    engine_version=self._engine_version(translation),
-                )
-                if path.lower().endswith(".pdf"):
-                    out = self.get_output_path(translation, path)
-                    FastPdfTranslator(
-                        pdf_path=path,
-                        output_path=out,
-                        underlying_translation=proxy,
-                        on_count_ready=self._report_total,
-                        on_read=self._report_read,
-                        on_translated_page=self._report_translated_page,
-                        on_page=self._report_page,
-                        on_save=self._report_save,
-                        is_cancelled=self.was_cancelled,
-                    ).translate_pdf()
-                else:
-                    out = argostranslatefiles.translate_file(
-                        proxy, path, get_output_path=self.get_output_path
-                    )
-                self._batch_segments += proxy.segments
-                self.file_cache_stats.emit(
-                    i, proxy.reused, self._batch_cache.reused, self._batch_segments
-                )
-                elapsed = time.monotonic() - file_start
-                self._history.record(
-                    path, out or "",
-                    translation.from_lang.code, translation.to_lang.code,
-                    self.engine_id, elapsed,
-                    reused=proxy.reused, segments=proxy.segments,
-                )
-                self.file_done.emit(i, out or "", elapsed)
-            except CancelledError:
-                break
-            except Exception as exc:  # noqa: BLE001
-                self.file_failed.emit(i, str(exc))
+    # --- what the batch reports, as signals ---
+    def on_file_started(self, index, path):
+        self.file_started.emit(index, path)
 
-    def _report_total(self, total):
-        """How many chunks the current file holds, known once it is parsed."""
-        self._total_chunks = total
-        self.progress_update.emit(0, total)
+    def on_language_detected(self, index, lang):
+        self.language_detected.emit(index, lang_text(lang))
 
-    def _report_progress(self, done):
-        now = time.monotonic()
-        total = self._total_chunks
-        if done == total or now - self._last_emit > 0.2:
-            self._last_emit = now
-            self.progress_update.emit(done, total)
+    def on_progress(self, done, total):
+        self.progress_update.emit(done, total)
 
-    def _report_pages(self, key, done, total, move_bar=True):
-        """Says which page of the current file a phase is on. On a long book
-        the percentage can sit on the same figure for a minute, so the page
-        number is what tells the user the run is alive."""
-        if move_bar:
-            self.progress_update.emit(done, total)
-        self.phase_changed.emit(
-            key, {"name": self._current_name, "done": done, "total": total}
-        )
+    def on_phase(self, key, kwargs):
+        self.phase_changed.emit(key, kwargs)
         self._yield_to_ui()
+
+    def on_file_done(self, index, out_path, seconds):
+        self.file_done.emit(index, out_path, seconds)
+
+    def on_file_failed(self, index, error):
+        self.file_failed.emit(index, error_text(error))
+
+    def on_file_skipped(self, index, out_path):
+        self.file_skipped.emit(index, out_path)
+
+    def on_cache_stats(self, index, file_reused, batch_reused, batch_segments):
+        self.file_cache_stats.emit(index, file_reused, batch_reused, batch_segments)
 
     def _yield_to_ui(self):
         """Hands the interpreter over to the interface thread for a moment.
@@ -415,20 +315,3 @@ class TranslateWorker(CancellableThread):
         if now - self._last_yield >= self.YIELD_EVERY:
             self._last_yield = now
             time.sleep(0.001)
-
-    def _report_read(self, done, total):
-        # reading is preparation: moving the bar here would sweep it to 100%
-        # and send it back to 0% when the translation itself starts, so the
-        # page number goes in the message and the bar stays indeterminate
-        self._report_pages("reading", done, total, move_bar=False)
-
-    def _report_translated_page(self, done, total):
-        # the bar is already counting paragraphs, a finer measure than pages
-        self._report_pages("translating_page", done, total, move_bar=False)
-
-    def _report_page(self, done, total):
-        self._report_pages("generating", done, total)
-
-    def _report_save(self):
-        self.progress_update.emit(0, 0)
-        self.phase_changed.emit("saving", {"name": self._current_name})

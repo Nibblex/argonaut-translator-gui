@@ -178,3 +178,23 @@ def name_sort_key(text):
 def sorted_languages(languages):
     """Languages ordered by the name the user will read."""
     return sorted(languages, key=lambda lang: name_sort_key(lang_text(lang)))
+
+
+def pair_text(pkg):
+    """An Argos package's language pair as the user reads it, in the
+    interface language."""
+    return (
+        f"{language_name(pkg.from_code, pkg.from_name)}"
+        f" → {language_name(pkg.to_code, pkg.to_name)}"
+    )
+
+
+def sorted_packages(pkgs):
+    """Argos packages ordered by their language pair as the user reads it."""
+    return sorted(
+        pkgs,
+        key=lambda p: (
+            name_sort_key(language_name(p.from_code, p.from_name)),
+            name_sort_key(language_name(p.to_code, p.to_name)),
+        ),
+    )

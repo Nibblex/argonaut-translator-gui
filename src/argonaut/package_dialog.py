@@ -18,7 +18,7 @@ from PyQt5.QtWidgets import (
 )
 
 from argonaut import packages
-from argonaut.i18n import tr
+from argonaut.i18n import pair_text, tr
 from argonaut.worker import (
     PackageInstallWorker,
     PackageListWorker,
@@ -159,7 +159,7 @@ class PackageDialog(QDialog):
 
     def refresh_item_text(self, item):
         pkg = item.data(PACKAGE_ROLE)
-        text = packages.pair_text(pkg)
+        text = pair_text(pkg)
         size = item.data(SIZE_ROLE)
         if size:
             text += f"  ·  {mb_text(size)}"
@@ -370,7 +370,7 @@ class PackageDialog(QDialog):
             try:
                 packages.uninstall(packages.pair(pkg))
             except Exception as exc:  # noqa: BLE001
-                errors.append(f"{packages.pair_text(pkg)}: {exc}")
+                errors.append(f"{pair_text(pkg)}: {exc}")
             else:
                 removed += 1
 
